@@ -13,7 +13,7 @@ config();
 const app = express();
 const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL, // database_URL es la variable de entorno
-    //ssl:true// when is local, development environment
+    ssl:true// when is local, development environment
 });
 
 // Middleware
