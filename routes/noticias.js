@@ -3,17 +3,34 @@ const router = express.Router();
 
 export default function noticiasRoutes(pool) {
 
-    // Obtener todas las noticias
+    // Obtener todas las noticias con el nombre de la empresa
     router.get('/noticias', async (req, res) => {
         try {
-            const noticias = await pool.query("SELECT * FROM noticias ORDER BY date DESC");
+            const noticias = await pool.query(`
+            SELECT 
+                noticias.id, 
+                noticias.title, 
+                noticias.summary, 
+                noticias.imageurl, 
+                noticias.date, 
+                noticias.readtime, 
+                empresas.nombre AS empresa 
+            FROM 
+                noticias 
+            INNER JOIN 
+                empresas 
+            ON 
+                noticias.empresa_id = empresas.id 
+            ORDER BY 
+                noticias.date DESC
+        `);
             res.json(noticias.rows);
         } catch (error) {
             console.error("Error al obtener noticias:", error);
             res.status(500).json({ message: "Error interno del servidor" });
         }
     });
-
+    
     // Obtener una noticia por ID
     router.get('/noticias/:id', async (req, res) => {
         try {
