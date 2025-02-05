@@ -7,6 +7,7 @@ import cors from 'cors'; // Importar CORS
 // Importar rutas
 import usuariosRoutes from './routes/usuarios.js';
 import noticiasRoutes from './routes/noticias.js';
+import rutasRoutes from './routes/rutas.js';
 
 config();
 
@@ -32,8 +33,10 @@ app.get('/', (req, res) => {
 // Usar rutas
 app.use('/', usuariosRoutes(pool));
 app.use('/', noticiasRoutes(pool));
-
 app.use('/noticias/img', express.static('public/noticias/img'));
+app.use('/rutas/img', express.static('public/rutas'));
+app.use('/', rutasRoutes(pool));
+
 // Iniciar servidor
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
