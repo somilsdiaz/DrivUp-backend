@@ -93,8 +93,13 @@ export default function usuariosRoutes(pool) {
             res.status(201).json({ message: 'Usuario registrado exitosamente.' });
 
         } catch (error) {
-            if (error.code === '23505') { // Código de error para valores duplicados en PostgreSQL
-                return res.status(400).json({ message: 'El documento con este tipo o el email ya están registrados.' });
+            if (error.code === '23505') {
+                if (error.constraint === 'unique_document') {
+                    return res.status(400).json({ message: 'Este documento ya está registrado con este tipo de documento.' });
+                }
+                if (error.constraint === 'unique_email') {
+                    return res.status(400).json({ message: 'El email ya está registrado.' });
+                }
             }
             console.error('Error al registrar usuario:', error);
             res.status(500).json({ message: 'Error interno al registrar el usuario.' });
