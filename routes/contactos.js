@@ -3,7 +3,7 @@ import express from 'express';
 
 const router = express.Router();
 
-export default function usuariosRoutes(pool) {
+export default function contactosRoutes(pool) {
     // Ruta para registrar un contacto
     router.post('/contactos', async (req, res) => {
         const {
@@ -26,25 +26,9 @@ export default function usuariosRoutes(pool) {
         }
 
         try {
-            // Verificar si el documento ya existe con el mismo tipo
-            const checkDocumentQuery = `
-            SELECT id FROM usuarios 
-            WHERE document_type = $1 AND document_number = $2`;
-            const checkDocumentResult = await pool.query(checkDocumentQuery, [document_type, document_number]);
-
-            if (checkDocumentResult.rows.length > 0) {
-                return res.status(400).json({ message: 'Este número de documento ya está registrado con este tipo de documento.' });
-            }
-
-            // Verificar si el email ya existe
-            const checkEmailQuery = `
-                        SELECT id FROM usuarios 
-                        WHERE email = $1`;
-            const checkEmailResult = await pool.query(checkEmailQuery, [email]);
-
 
             const query = `
-                INSERT INTO usuarios (
+                INSERT INTO contactos (
                     nombre, correo, asunto, mensaje, archivo
                 ) VALUES ($1, $2, $3, $4, $5)
             `;
