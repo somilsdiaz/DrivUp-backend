@@ -8,7 +8,7 @@ import cors from 'cors'; // Importar CORS
 import usuariosRoutes from './routes/usuarios.js';
 import noticiasRoutes from './routes/noticias.js';
 import rutasRoutes from './routes/rutas.js';
-
+import contactosRoutes from './routes/contactos.js';
 config();
 
 const app = express();
@@ -33,6 +33,7 @@ app.get('/', (req, res) => {
 // Usar rutas
 app.use('/', usuariosRoutes(pool));
 app.use('/', noticiasRoutes(pool));
+app.use('/', contactosRoutes(pool));
 app.use('/noticias/img', express.static('public/noticias/img'));
 app.use('/rutas/img', express.static('public/rutas'));
 app.use('/', rutasRoutes(pool));
