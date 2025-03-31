@@ -1,53 +1,93 @@
 import express from 'express';
+import bcrypt from 'bcrypt';
+
 const router = express.Router();
 
 export default function usuariosRoutes(pool) {
-
-       // Ruta para registrar un usuario
-       router.post('/registro', async (req, res) => {
-        const {
-            identificacion,
-            nombre,
-            apellidos,
-            tipoIdentificacion,
-            fechaNacimiento,
-            universidad,
-            ciudadResidencia,
+    // Ruta para registrar un usuario
+    router.post('/registro', async (req, res) => {
+        const { 
+            name,
+            second_name,
+            last_name,
+            second_last_name,
+            document_type,
+            document_number,
             email,
-            password
+            phone_number,
+            password,
+            accept_data
         } = req.body;
 
-        // Validar que todos los campos requeridos estén presentes
-        if (!identificacion || !nombre || !apellidos || !tipoIdentificacion || !fechaNacimiento || !universidad || !ciudadResidencia || !email || !password) {
-            return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
+        // Validar que todos los campos obligatorios estén presentes
+        if (!name || !last_name || !second_last_name || !document_type || !document_number || !email || !phone_number || !password) {
+            return res.status(400).json({ message: 'Todos los campos obligatorios deben estar llenos.' });
+        }
+
+        if (accept_data !== true) {
+            return res.status(400).json({ message: 'Debe aceptar la política de datos.' });
+        }
+
+        const validDocumentTypes = ['cc', 'ti', 'passport', 'ce'];
+        if (!validDocumentTypes.includes(document_type.toLowerCase())) {
+            return res.status(400).json({ message: 'Tipo de documento no válido.' });
         }
 
         try {
-            // Insertar el usuario en la base de datos
+            // Verificar si el usuario ya existe (por documento o email)
+            const checkQuery = `
+                SELECT id FROM usuarios 
+                WHERE (document_type = $1 AND document_number = $2) OR email = $3
+            `;
+            const checkResult = await pool.query(checkQuery, [document_type, document_number, email]);
+
+            if (checkResult.rows.length > 0) {
+                return res.status(400).json({ message: 'El documento ya está registrado con este tipo o el email ya está en uso.' });
+            }
+
+            if (password.length < 8) {
+                return res.status(400).json({ message: 'La contraseña debe tener al menos 8 caracteres.' });
+            }
+            
+            // Encriptar la contraseña antes de almacenarla
+            let password_hash;
+            try {
+                password_hash = await bcrypt.hash(password, 10);
+            } catch (error) {
+                return res.status(500).json({ message: 'Error al encriptar la contraseña.' });
+            }
+            
+
             const query = `
                 INSERT INTO usuarios (
-                    identificacion, nombre, apellidos, tipo_identificacion, fecha_nacimiento, universidad, ciudad_residencia, email, password
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                    name, second_name, last_name, second_last_name, document_type, document_number, 
+                    email, phone_number, password_hash, accept_data
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             `;
 
             const values = [
-                identificacion,
-                nombre,
-                apellidos,
-                tipoIdentificacion,
-                fechaNacimiento,
-                universidad,
-                ciudadResidencia,
+                name,
+                second_name || null, // Si no se envía, se guarda como NULL
+                last_name,
+                second_last_name,
+                document_type,
+                document_number,
                 email,
-                password // Nota: Asegúrate de encriptar las contraseñas antes de almacenarlas
+                phone_number,
+                password_hash, // Guardar contraseña encriptada
+                accept_data
             ];
 
             await pool.query(query, values);
 
             res.status(201).json({ message: 'Usuario registrado exitosamente.' });
+
         } catch (error) {
-            console.error('Error al registrar el usuario:', error);
-            res.status(500).json({ message: 'Ocurrió un error al registrar el usuario.' });
+            if (error.code === '23505') { // Código de error para valores duplicados en PostgreSQL
+                return res.status(400).json({ message: 'El documento con este tipo o el email ya están registrados.' });
+            }
+            console.error('Error al registrar usuario:', error);
+            res.status(500).json({ message: 'Error interno al registrar el usuario.' });
         }
     });
 
