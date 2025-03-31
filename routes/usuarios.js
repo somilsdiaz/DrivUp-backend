@@ -6,7 +6,7 @@ const router = express.Router();
 export default function usuariosRoutes(pool) {
     // Ruta para registrar un usuario
     router.post('/registro', async (req, res) => {
-        const { 
+        const {
             name,
             second_name,
             last_name,
@@ -34,21 +34,31 @@ export default function usuariosRoutes(pool) {
         }
 
         try {
-            // Verificar si el usuario ya existe (por documento o email)
-            const checkQuery = `
-                SELECT id FROM usuarios 
-                WHERE (document_type = $1 AND document_number = $2) OR email = $3
-            `;
-            const checkResult = await pool.query(checkQuery, [document_type, document_number, email]);
+            // Verificar si el documento ya existe con el mismo tipo
+            const checkDocumentQuery = `
+            SELECT id FROM usuarios 
+            WHERE document_type = $1 AND document_number = $2`;
+            const checkDocumentResult = await pool.query(checkDocumentQuery, [document_type, document_number]);
 
-            if (checkResult.rows.length > 0) {
-                return res.status(400).json({ message: 'El documento ya está registrado con este tipo o el email ya está en uso.' });
+            if (checkDocumentResult.rows.length > 0) {
+                return res.status(400).json({ message: 'Este número de documento ya está registrado con este tipo de documento.' });
             }
+
+            // Verificar si el email ya existe
+            const checkEmailQuery = `
+                        SELECT id FROM usuarios 
+                        WHERE email = $1`;
+            const checkEmailResult = await pool.query(checkEmailQuery, [email]);
+
+            if (checkEmailResult.rows.length > 0) {
+                return res.status(400).json({ message: 'El email ya está registrado.' });
+            }
+
 
             if (password.length < 8) {
                 return res.status(400).json({ message: 'La contraseña debe tener al menos 8 caracteres.' });
             }
-            
+
             // Encriptar la contraseña antes de almacenarla
             let password_hash;
             try {
@@ -56,7 +66,7 @@ export default function usuariosRoutes(pool) {
             } catch (error) {
                 return res.status(500).json({ message: 'Error al encriptar la contraseña.' });
             }
-            
+
 
             const query = `
                 INSERT INTO usuarios (
