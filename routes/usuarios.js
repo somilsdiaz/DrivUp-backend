@@ -138,38 +138,43 @@ export default function usuariosRoutes(pool) {
     // });
     router.post('/login', async (req, res) => {
         const { email, password } = req.body;
-    
+
         // Validar que el usuario envió email y contraseña
         if (!email || !password) {
             return res.status(400).json({ message: 'Email y contraseña son requeridos.' });
         }
-    
+
         try {
             // Buscar usuario en la base de datos por email
             const query = `SELECT * FROM usuarios WHERE email = $1`;
             const result = await pool.query(query, [email]);
-    
+
             if (result.rows.length === 0) {
                 return res.status(401).json({ message: 'Credenciales incorrectas.' });
             }
-    
+
             const usuario = result.rows[0];
-    
+
             // Comparar la contraseña enviada con la almacenada en la BD
             const passwordMatch = await bcrypt.compare(password, usuario.password_hash);
-    
+
             if (!passwordMatch) {
                 return res.status(401).json({ message: 'Credenciales incorrectas.' });
             }
-    
-            // Enviar solo un mensaje sin el token
-            res.json({ message: 'Login exitoso' });
+
+            // Generar un token JWT
+            const token = jwt.sign(
+                { id: usuario.id, email: usuario.email },
+                'secreto_super_seguro', // Cambia esto por una variable de entorno
+                { expiresIn: '2h' }
+            );
+
+            res.json({ message: 'Login exitoso', token });
         } catch (error) {
             console.error("Error en el login:", error);
             res.status(500).json({ message: 'Error interno del servidor' });
         }
     });
-    
     
     
 
