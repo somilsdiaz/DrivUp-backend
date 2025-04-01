@@ -136,7 +136,7 @@ export default function usuariosRoutes(pool) {
 
 
     // });
-    router.post('/usuarios', async (req, res) => {
+    router.post('/login', async (req, res) => {
         const { email, password } = req.body;
 
         // Validar que el usuario envió email y contraseña
