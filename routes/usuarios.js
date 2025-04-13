@@ -108,34 +108,34 @@ export default function usuariosRoutes(pool) {
         }
     });
     
-    //Ruta para obtener los usuarios
-    // router.get('/usuarios', async (req, res) => {
-    //     try{
-    //         const usuarios = await pool.query(`
-    //          SELECT
-    //              usuarios.id,
-    //              usuarios.name,
-    //              usuarios.second_name,
-    //              usuarios.last_name,
-    //              usuarios.second_last_name,
-    //              usuarios.document_type,
-    //              usuarios.document_number,
-    //              usuarios.email,
-    //              usuarios.phone_number,
-    //              usuarios.password_hash,
-    //              usuarios.accept_data,
-    //              usuarios.created_at
-    //          FROM
-    //              usuarios                    
-    //             `);
-    //             res.json(usuarios.rows);
-    //     } catch (error) {
-    //         console.error("Error al obtener usuarios:", error);
-    //         res.status(500).json({ message: "Error interno del servidor" });
-    //     }
+   // Ruta para obtener los usuarios
+    router.get('/usuarios', async (req, res) => {
+        try{
+            const usuarios = await pool.query(`
+             SELECT
+                 usuarios.id,
+                 usuarios.name,
+                 usuarios.second_name,
+                 usuarios.last_name,
+                 usuarios.second_last_name,
+                 usuarios.document_type,
+                 usuarios.document_number,
+                 usuarios.email,
+                 usuarios.phone_number,
+                 usuarios.password_hash,
+                 usuarios.accept_data,
+                 usuarios.created_at
+             FROM
+                 usuarios                    
+                `);
+                res.json(usuarios.rows);
+        } catch (error) {
+            console.error("Error al obtener usuarios:", error);
+            res.status(500).json({ message: "Error interno del servidor" });
+        }
 
 
-    // });
+    });
     router.post('/login', async (req, res) => {
         const { email, password } = req.body;
 
