@@ -7,6 +7,7 @@ import cors from 'cors'; // Importar CORS
 // Importar rutas
 import usuariosRoutes from './routes/usuarios.js';
 import contactosRoutes from './routes/contactos.js';
+import conductoresRoutes from './routes/conductores.js';
 
 config();
 
@@ -26,12 +27,13 @@ app.use(express.json()); // Para analizar cuerpos de solicitud en formato JSON
 
 // Ruta de prueba
 app.get('/', (req, res) => {
-    res.send('¡API de UniBus esta funcionando!');
+    res.send('¡API de DrivUp esta funcionando!');
 });
 
 // Usar rutas
 app.use('/', usuariosRoutes(pool));
 app.use('/', contactosRoutes(pool));
+app.use('/', conductoresRoutes(pool));
 //app.use('/noticias/img', express.static('public/noticias/img'));
 
 // Iniciar servidor
