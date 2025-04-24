@@ -1,8 +1,9 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken'; // Para generar tokens
+import { config } from 'dotenv'; // Para variables de entorno
 
-
+config();
 const router = express.Router();
 
 export default function usuariosRoutes(pool) {
@@ -178,7 +179,7 @@ export default function usuariosRoutes(pool) {
             // Generar un token JWT
             const token = jwt.sign(
                 { id: usuario.id, email: usuario.email },
-                'secreto_super_seguro', // Cambia esto por una variable de entorno
+                process.env.SECRET_KEY, 
                 { expiresIn: '2h' }
             );
 
