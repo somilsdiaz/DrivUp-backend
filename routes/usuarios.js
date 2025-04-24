@@ -107,35 +107,48 @@ export default function usuariosRoutes(pool) {
             res.status(500).json({ message: 'Error interno al registrar el usuario.' });
         }
     });
-    
-   // Ruta para obtener los usuarios
-    router.get('/usuarios', async (req, res) => {
-        try{
-            const usuarios = await pool.query(`
-             SELECT
-                 usuarios.id,
-                 usuarios.name,
-                 usuarios.second_name,
-                 usuarios.last_name,
-                 usuarios.second_last_name,
-                 usuarios.document_type,
-                 usuarios.document_number,
-                 usuarios.email,
-                 usuarios.phone_number,
-                 usuarios.password_hash,
-                 usuarios.accept_data,
-                 usuarios.created_at
-             FROM
-                 usuarios                    
-                `);
-                res.json(usuarios.rows);
+
+    // Ruta para obtener un usuario específico por su ID
+    router.get('/usuario/:userId', async (req, res) => {
+        try {
+            const userId = parseInt(req.params.userId);
+            
+            if (isNaN(userId)) {
+                return res.status(400).json({ message: "ID de usuario inválido" });
+            }
+            
+            const query = `
+                SELECT
+                    id,
+                    name,
+                    second_name,
+                    last_name,
+                    second_last_name,
+                    document_type,
+                    document_number,
+                    email,
+                    phone_number,
+                    accept_data,
+                    created_at
+                FROM
+                    usuarios
+                WHERE
+                    id = $1
+            `;
+            
+            const result = await pool.query(query, [userId]);
+            
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: "Usuario no encontrado" });
+            }
+            
+            res.json(result.rows[0]);
         } catch (error) {
-            console.error("Error al obtener usuarios:", error);
+            console.error("Error al obtener usuario:", error);
             res.status(500).json({ message: "Error interno del servidor" });
         }
-
-
     });
+
     router.post('/login', async (req, res) => {
         const { email, password } = req.body;
 
@@ -169,14 +182,55 @@ export default function usuariosRoutes(pool) {
                 { expiresIn: '2h' }
             );
 
-            res.json({ message: 'Login exitoso', token });
+            res.json({ 
+                message: 'Login exitoso', 
+                token,
+                userId: usuario.id 
+            });
         } catch (error) {
             console.error("Error en el login:", error);
             res.status(500).json({ message: 'Error interno del servidor' });
         }
     });
-    
-    
+
+    /**
+     * obtener el rol de un usuario por su ID
+     * GET /usuarios/:userId/role
+     */
+    router.get('/usuarios/:userId/role', async (req, res) => {
+        try {
+            const userId = parseInt(req.params.userId);
+
+            if (isNaN(userId)) {
+                return res.status(400).json({ message: "ID de usuario inválido" });
+            }
+
+            //el usuario existe en la tabla usuarios?
+            const userQuery = 'SELECT id FROM usuarios WHERE id = $1';
+            const userResult = await pool.query(userQuery, [userId]);
+
+            if (userResult.rows.length === 0) {
+                return res.status(404).json({ message: "Usuario no encontrado" });
+            }
+
+            // el usuario también existe en la tabla conductores?
+            const driverQuery = 'SELECT id FROM conductores WHERE user_id = $1';
+            const driverResult = await pool.query(driverQuery, [userId]);
+
+            // determinamos el rol según si existe o no en la tabla conductores
+            const role = driverResult.rows.length > 0 ? "conductor y pasajero" : "pasajero";
+
+            return res.status(200).json({
+                userId: userId,
+                role: role
+            });
+
+        } catch (error) {
+            console.error("Error al obtener el rol del usuario:", error);
+            res.status(500).json({ message: "Error interno del servidor al procesar la solicitud" });
+        }
+    });
 
     return router;
 }
+

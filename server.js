@@ -3,17 +3,31 @@ import express from 'express';
 import { config } from 'dotenv'; // Para variables de entorno
 import pg from 'pg';
 import cors from 'cors'; // Importar CORS
+import http from 'http';
+import { Server } from 'socket.io'; // Importar socket.io
 
 // Importar rutas
 import usuariosRoutes from './routes/usuarios.js';
 import contactosRoutes from './routes/contactos.js';
+//mport mensajesRoutes from './routes/mensajes.js';
 
 config();
 
 const app = express();
+//configuración de Socket.io
+const server = http.createServer(app); //crear servidor http
+//crear instancia de socket.io
+const io = new Server(server, {
+    cors: {
+        origin: ['http://localhost:5173', 'https://drivup.onrender.com'], //permitir conexiones desde localhost y el dominio de la app
+        methods: ['GET', 'POST'], //permitir metodos GET y POST
+        allowedHeaders: ['Content-Type', 'Authorization'] //permitir encabezados de contenido y autorización
+    }
+});
+
 const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL, // database_URL es la variable de entorno
-    ssl:true// when is local, development environment
+    connectionString: process.env.DATABASE_URL, 
+    ssl:true
 });
 
 // Middleware
@@ -32,8 +46,9 @@ app.get('/', (req, res) => {
 // Usar rutas
 app.use('/', usuariosRoutes(pool));
 app.use('/', contactosRoutes(pool));
+//app.use('/', mensajesRoutes(pool, io));
 //app.use('/noticias/img', express.static('public/noticias/img'));
 
 // Iniciar servidor
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+server.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
