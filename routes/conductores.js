@@ -50,10 +50,10 @@ export default function conductoresRoutes(pool) {
 
 
             // validamos y ahora se procesa los nombres de archivo para la DB
-            const foto_de_perfil_filename = perfilFile.filename; 
-            const tarjeta_de_propiedad_filenames = tarjetaFiles.map(f => f.filename); 
-            const seguro_del_vehiculo_filenames = seguroFiles.map(f => f.filename); 
-            const foto_de_licencia_filenames = licenciaFiles.map(f => f.filename); 
+            const foto_de_perfil_filename = perfilFile.filename;
+            const tarjeta_de_propiedad_filenames = tarjetaFiles.map(f => f.filename);
+            const seguro_del_vehiculo_filenames = seguroFiles.map(f => f.filename);
+            const foto_de_licencia_filenames = licenciaFiles.map(f => f.filename);
 
             try {
                 const result = await pool.query(
@@ -67,12 +67,12 @@ export default function conductoresRoutes(pool) {
                     ) RETURNING *`,
                     [
                         user_id, licencia_de_conducir, fecha_de_vencimiento,
-                        foto_de_perfil_filename, 
+                        foto_de_perfil_filename,
                         marca_de_vehiculo, modelo_de_vehiculo, anio_del_vehiculo, color_del_vehiculo,
                         placa_del_vehiculo, Capacidad_de_pasajeros,
-                        tarjeta_de_propiedad_filenames, 
-                        seguro_del_vehiculo_filenames,  
-                        foto_de_licencia_filenames      
+                        tarjeta_de_propiedad_filenames,
+                        seguro_del_vehiculo_filenames,
+                        foto_de_licencia_filenames
                     ]
                 );
                 return res.status(201).json({
@@ -84,6 +84,79 @@ export default function conductoresRoutes(pool) {
                 return res.status(500).json({ message: 'Error interno del servidor al guardar los datos.' });
             }
         });
+
+    // POST para crear la configuración de viaje
+    router.post('/configuracion-conductores-viaje', async (req, res) => {
+        const {
+            origen_aproximado,
+            destino_aproximado,
+            descripcion
+        } = req.body;
+
+        const user_id = req.user.id; // ID del usuario autenticado
+
+        try {
+            const query = `
+            INSERT INTO conductores (
+                user_id, 
+                origen_aproximado, 
+                destino_aproximado, 
+                descripcion
+            ) VALUES ($1, $2, $3, $4) RETURNING *;
+        `;
+
+            const result = await pool.query(query, [
+                user_id,
+                origen_aproximado,
+                destino_aproximado,
+                descripcion
+            ]);
+
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error(error);
+            res.status(500).send('Error interno al guardar la configuración de viaje');
+        }
+    });
+
+    // PUT para actualizar la configuración de viaje
+    router.put('/configuracion-conductores-viaje', async (req, res) => {
+        const {
+            origen_aproximado,
+            destino_aproximado,
+            descripcion
+        } = req.body;
+
+        const user_id = req.user.id; // ID del usuario autenticado
+
+        try {
+            const query = `
+            UPDATE conductores
+            SET
+                origen_aproximado = $1,
+                destino_aproximado = $2,
+                descripcion = $3
+            WHERE user_id = $4
+            RETURNING *;
+        `;
+
+            const result = await pool.query(query, [
+                origen_aproximado,
+                destino_aproximado,
+                descripcion,
+                user_id
+            ]);
+
+            if (result.rows.length === 0) {
+                return res.status(404).send('Configuración de viaje no encontrada');
+            }
+
+            res.status(200).json(result.rows[0]);
+        } catch (error) {
+            console.error(error);
+            res.status(500).send('Error interno al actualizar la configuración de viaje');
+        }
+    });
 
 
     // Ruta para obtener los conductores
@@ -106,6 +179,9 @@ export default function conductoresRoutes(pool) {
                     conductores.seguro_del_vehiculo,
                     conductores.foto_de_licencia,
                     conductores.created_at
+                    conductores.origen_aproximado
+                    conductores.destino_aproximado
+                    conductores.descripcion
                 FROM
                     conductores                    
                 `);
