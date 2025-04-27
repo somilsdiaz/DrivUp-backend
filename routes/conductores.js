@@ -86,7 +86,7 @@ export default function conductoresRoutes(pool) {
         });
 
     // POST para crear la configuración de viaje
-    router.post('/configuracion-conductores-viaje', async (req, res) => {
+    router.post('/configuracion-conductores-viaje', verifyToken, async (req, res) => {
         const {
             origen_aproximado,
             destino_aproximado,
@@ -120,7 +120,7 @@ export default function conductoresRoutes(pool) {
     });
 
     // PUT para actualizar la configuración de viaje
-    router.put('/configuracion-conductores-viaje', async (req, res) => {
+    router.put('/configuracion-conductores-viaje', verifyToken, async (req, res) => {
         const {
             origen_aproximado,
             destino_aproximado,
