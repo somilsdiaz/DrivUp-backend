@@ -85,40 +85,6 @@ export default function conductoresRoutes(pool) {
             }
         });
 
-    // POST para crear la configuración de viaje
-    router.post('/configuracion-conductores-viaje', verifyToken, async (req, res) => {
-        const {
-            origen_aproximado,
-            destino_aproximado,
-            descripcion
-        } = req.body;
-
-        const user_id = req.user.id; // ID del usuario autenticado
-
-        try {
-            const query = `
-            INSERT INTO conductores (
-                user_id, 
-                origen_aproximado, 
-                destino_aproximado, 
-                descripcion
-            ) VALUES ($1, $2, $3, $4) RETURNING *;
-        `;
-
-            const result = await pool.query(query, [
-                user_id,
-                origen_aproximado,
-                destino_aproximado,
-                descripcion
-            ]);
-
-            res.status(201).json(result.rows[0]);
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ message: 'Error interno al guardar la configuración de viaje' });
-        }
-    });
-
     // PUT para actualizar la configuración de viaje
     router.put('/configuracion-conductores-viaje', verifyToken, async (req, res) => {
         const {
@@ -131,19 +97,19 @@ export default function conductoresRoutes(pool) {
 
         try {
             const query = `
-            UPDATE conductores
-            SET
-                origen_aproximado = $1,
-                destino_aproximado = $2,
-                descripcion = $3
-            WHERE user_id = $4
-            RETURNING *;
-        `;
+        UPDATE conductores
+        SET
+            origen_aproximado = COALESCE($1, origen_aproximado), 
+            destino_aproximado = COALESCE($2, destino_aproximado),
+            descripcion = COALESCE($3, descripcion)
+        WHERE user_id = $4
+        RETURNING *;
+    `;
 
             const result = await pool.query(query, [
-                origen_aproximado,
-                destino_aproximado,
-                descripcion,
+                origen_aproximado || null, // Si no se envía un valor, no actualiza el campo.
+                destino_aproximado || null,
+                descripcion || null,
                 user_id
             ]);
 
@@ -154,7 +120,7 @@ export default function conductoresRoutes(pool) {
             res.status(200).json(result.rows[0]);
         } catch (error) {
             console.error(error);
-            res.status(500).json({ message: 'Error interno al guardar la configuración de viaje' });
+            res.status(500).json({ message: 'Error interno al actualizar la configuración de viaje' });
         }
     });
 
