@@ -115,7 +115,7 @@ export default function conductoresRoutes(pool) {
             res.status(201).json(result.rows[0]);
         } catch (error) {
             console.error(error);
-            res.status(500).send('Error interno al guardar la configuración de viaje');
+            res.status(500).json({ message: 'Error interno al guardar la configuración de viaje' });
         }
     });
 
@@ -148,13 +148,13 @@ export default function conductoresRoutes(pool) {
             ]);
 
             if (result.rows.length === 0) {
-                return res.status(404).send('Configuración de viaje no encontrada');
+                return res.status(404).json({ message: 'Configuración de viaje no encontrada' });
             }
 
             res.status(200).json(result.rows[0]);
         } catch (error) {
             console.error(error);
-            res.status(500).send('Error interno al actualizar la configuración de viaje');
+            res.status(500).json({ message: 'Error interno al guardar la configuración de viaje' });
         }
     });
 
