@@ -178,9 +178,9 @@ export default function conductoresRoutes(pool) {
                     conductores.tarjeta_de_propiedad_vehicular,
                     conductores.seguro_del_vehiculo,
                     conductores.foto_de_licencia,
-                    conductores.created_at
-                    conductores.origen_aproximado
-                    conductores.destino_aproximado
+                    conductores.created_at,
+                    conductores.origen_aproximado,
+                    conductores.destino_aproximado,
                     conductores.descripcion
                 FROM
                     conductores                    
