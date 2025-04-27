@@ -124,6 +124,31 @@ export default function conductoresRoutes(pool) {
         }
     });
 
+    router.get('/conductor-preferencias', verifyToken, async (req, res) => {
+        try {
+            const userId = req.user.id; // Asumiendo que tienes el ID del usuario en el token
+            const query = `
+                SELECT 
+                    conductores.origen_aproximado, 
+                    conductores.destino_aproximado, 
+                    conductores.descripcion 
+                FROM conductores 
+                WHERE user_id = $1
+            `;
+
+            // Usando await con pool.query
+            const { rows } = await pool.query(query, [userId]);
+
+            if (rows.length > 0) {
+                res.json(rows[0]); // Retornar solo el primer resultado
+            } else {
+                res.status(404).json({ message: "No se encontraron datos" });
+            }
+        } catch (err) {
+            console.error("Error al obtener datos:", err);
+            res.status(500).json({ message: "Error al obtener datos", error: err.message });
+        }
+    });
 
     // Ruta para obtener los conductores
     router.get('/conductores', async (req, res) => {
