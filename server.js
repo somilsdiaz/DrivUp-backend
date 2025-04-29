@@ -6,6 +6,8 @@ import cors from 'cors'; // Importar CORS
 import http from 'http';
 import { Server } from 'socket.io'; // Importar socket.io
 
+import path from 'path';
+
 // Importar rutas
 import usuariosRoutes from './routes/usuarios.js';
 import contactosRoutes from './routes/contactos.js';
@@ -44,6 +46,9 @@ app.use(express.json()); // Para analizar cuerpos de solicitud en formato JSON
 app.get('/', (req, res) => {
     res.send('¡API de DrivUp esta funcionando!');
 });
+
+// Exponer la carpeta uploads como pública
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Usar rutas
 app.use('/', usuariosRoutes(pool));
