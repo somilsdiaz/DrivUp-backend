@@ -118,7 +118,52 @@ export default function conductoresRoutes(pool) {
 
     });
 
+
+   router.get('/datosconductores', async (req, res) => {
+        const { conductor_id } = req.query; // Obtener el ID del conductor de la consulta
+        try {
+            const conductor = await pool.query(
+                `SELECT 
+    T.*, 
+    AVG(r.calificacion) AS promedio_calificacion
+FROM (
+    SELECT 
+        c.id, 
+        u.name, 
+        u.last_name, 
+        u.second_last_name, 
+        c.modelo_de_vehiculo, 
+        c.color_del_vehiculo, 
+        c.año_del_vehiculo, 
+        c.capacidad_de_pasajeros, 
+        c.created_at
+    FROM usuarios AS u
+    INNER JOIN conductores AS c ON c.user_id = u.id
+) AS T
+INNER JOIN reseñas AS r ON T.id = r.conductor_id
+WHERE T.id = ${conductor_id}
+GROUP BY 
+    T.id, 
+    T.name, 
+    T.last_name, 
+    T.second_last_name, 
+    T.modelo_de_vehiculo, 
+    T.color_del_vehiculo, 
+    T.año_del_vehiculo, 
+    T.capacidad_de_pasajeros, 
+    T.created_at;
+`);
+            res.json(conductor.rows[0]);
+        } catch (error) {
+            console.error("Error al obtener el conductor:", error);
+            res.status(500).json({ message: "Error interno del servidor" });
+        }
+
+
+    }
+   )
+
     return router;
-
-
 }
+
+
