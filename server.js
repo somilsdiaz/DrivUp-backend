@@ -6,10 +6,12 @@ import cors from 'cors'; // Importar CORS
 import http from 'http';
 import { Server } from 'socket.io'; // Importar socket.io
 
+import path from 'path';
+
 // Importar rutas
 import usuariosRoutes from './routes/usuarios.js';
 import contactosRoutes from './routes/contactos.js';
-//mport mensajesRoutes from './routes/mensajes.js';
+import mensajesRoutes from './routes/mensajes.js';
 import conductoresRoutes from './routes/conductores.js';
 import reseñasRoutes from './routes/reseñas.js';
 
@@ -46,11 +48,13 @@ app.get('/', (req, res) => {
     res.send('¡API de DrivUp esta funcionando!');
 });
 
+// Exponer la carpeta uploads como pública
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
 // Usar rutas
 app.use('/', usuariosRoutes(pool));
 app.use('/', contactosRoutes(pool));
-
-//app.use('/', mensajesRoutes(pool, io));
+app.use('/', mensajesRoutes(pool, io));
 app.use('/', conductoresRoutes(pool));
 app.use('/', reseñasRoutes(pool));
 //app.use('/noticias/img', express.static('public/noticias/img'));

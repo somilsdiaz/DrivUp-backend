@@ -50,10 +50,10 @@ export default function conductoresRoutes(pool) {
 
 
             // validamos y ahora se procesa los nombres de archivo para la DB
-            const foto_de_perfil_filename = perfilFile.filename; 
-            const tarjeta_de_propiedad_filenames = tarjetaFiles.map(f => f.filename); 
-            const seguro_del_vehiculo_filenames = seguroFiles.map(f => f.filename); 
-            const foto_de_licencia_filenames = licenciaFiles.map(f => f.filename); 
+            const foto_de_perfil_filename = perfilFile.filename;
+            const tarjeta_de_propiedad_filenames = tarjetaFiles.map(f => f.filename);
+            const seguro_del_vehiculo_filenames = seguroFiles.map(f => f.filename);
+            const foto_de_licencia_filenames = licenciaFiles.map(f => f.filename);
 
             try {
                 const result = await pool.query(
@@ -67,12 +67,12 @@ export default function conductoresRoutes(pool) {
                     ) RETURNING *`,
                     [
                         user_id, licencia_de_conducir, fecha_de_vencimiento,
-                        foto_de_perfil_filename, 
+                        foto_de_perfil_filename,
                         marca_de_vehiculo, modelo_de_vehiculo, anio_del_vehiculo, color_del_vehiculo,
                         placa_del_vehiculo, Capacidad_de_pasajeros,
-                        tarjeta_de_propiedad_filenames, 
-                        seguro_del_vehiculo_filenames,  
-                        foto_de_licencia_filenames      
+                        tarjeta_de_propiedad_filenames,
+                        seguro_del_vehiculo_filenames,
+                        foto_de_licencia_filenames
                     ]
                 );
                 return res.status(201).json({
@@ -85,6 +85,70 @@ export default function conductoresRoutes(pool) {
             }
         });
 
+    // PUT para actualizar la configuración de viaje
+    router.put('/configuracion-conductores-viaje', verifyToken, async (req, res) => {
+        const {
+            origen_aproximado,
+            destino_aproximado,
+            descripcion
+        } = req.body;
+
+        const user_id = req.user.id; // ID del usuario autenticado
+
+        try {
+            const query = `
+        UPDATE conductores
+        SET
+            origen_aproximado = COALESCE($1, origen_aproximado), 
+            destino_aproximado = COALESCE($2, destino_aproximado),
+            descripcion = COALESCE($3, descripcion)
+        WHERE user_id = $4
+        RETURNING *;
+    `;
+
+            const result = await pool.query(query, [
+                origen_aproximado || null, // Si no se envía un valor, no actualiza el campo.
+                destino_aproximado || null,
+                descripcion || null,
+                user_id
+            ]);
+
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Configuración de viaje no encontrada' });
+            }
+
+            res.status(200).json(result.rows[0]);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Error interno al actualizar la configuración de viaje' });
+        }
+    });
+
+    router.get('/conductor-preferencias', verifyToken, async (req, res) => {
+        try {
+            const userId = req.user.id; // Asumiendo que tienes el ID del usuario en el token
+            const query = `
+                SELECT 
+                    conductores.origen_aproximado, 
+                    conductores.destino_aproximado, 
+                    conductores.descripcion 
+                FROM conductores 
+                WHERE user_id = $1
+            `;
+
+            // Usando await con pool.query
+            const { rows } = await pool.query(query, [userId]);
+
+            if (rows.length > 0) {
+                res.json(rows[0]); // Retornar solo el primer resultado
+            } else {
+                res.status(404).json({ message: "No se encontraron datos" });
+            }
+        } catch (err) {
+            console.error("Error al obtener datos:", err);
+            res.status(500).json({ message: "Error al obtener datos", error: err.message });
+        }
+    });
 
     // Ruta para obtener los conductores
     router.get('/conductores', async (req, res) => {
@@ -105,7 +169,10 @@ export default function conductoresRoutes(pool) {
                     conductores.tarjeta_de_propiedad_vehicular,
                     conductores.seguro_del_vehiculo,
                     conductores.foto_de_licencia,
-                    conductores.created_at
+                    conductores.created_at,
+                    conductores.origen_aproximado,
+                    conductores.destino_aproximado,
+                    conductores.descripcion
                 FROM
                     conductores                    
                 `);
