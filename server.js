@@ -32,7 +32,7 @@ const io = new Server(server, {
 
 const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL, 
-    ssl:true
+    ssl:true,
 });
 
 // Middleware

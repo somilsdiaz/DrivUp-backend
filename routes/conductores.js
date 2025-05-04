@@ -151,38 +151,54 @@ export default function conductoresRoutes(pool) {
     });
 
     // Ruta para obtener los conductores
-    router.get('/conductores', async (req, res) => {
+    router.get('/conductores', async (_, res) => {
         try {
             const conductores = await pool.query(`
-                SELECT
-                    conductores.id,
-                    conductores.user_id,
-                    conductores.licencia_de_conducir,
-                    conductores.fecha_de_vencimiento,
-                    conductores.foto_de_perfil,
-                    conductores.marca_de_vehiculo,
-                    conductores.modelo_de_vehiculo,
-                    conductores.año_del_vehiculo,
-                    conductores.color_del_vehiculo,
-                    conductores.placa_del_vehiculo,
-                    conductores.capacidad_de_pasajeros,
-                    conductores.tarjeta_de_propiedad_vehicular,
-                    conductores.seguro_del_vehiculo,
-                    conductores.foto_de_licencia,
-                    conductores.created_at,
-                    conductores.origen_aproximado,
-                    conductores.destino_aproximado,
-                    conductores.descripcion
-                FROM
-                    conductores                    
-                `);
+     SELECT 
+    T.id,
+    CONCAT_WS(' ', T.name, T.second_name, T.last_name, T.second_last_name) AS nombre_completo,
+    T.modelo_de_vehiculo, 
+    T.color_del_vehiculo, 
+    T.año_del_vehiculo, 
+    T.capacidad_de_pasajeros, 
+    T.created_at,
+    rc.origen, 
+    rc.destino, 
+    rc.descripcion, 
+    AVG(r.calificacion) AS promedio_calificacion
+FROM (
+    SELECT 
+        c.id, 
+        u.name, 
+        u.second_name, 
+        u.last_name, 
+        u.second_last_name, 
+        c.modelo_de_vehiculo, 
+        c.color_del_vehiculo, 
+        c.año_del_vehiculo, 
+        c.capacidad_de_pasajeros, 
+        c.created_at
+    FROM usuarios AS u
+    INNER JOIN conductores AS c ON c.user_id = u.id
+) AS T
+INNER JOIN reseñas AS r ON T.id = r.conductor_id
+INNER JOIN Ruta_Conductor AS rc ON T.id = rc.conductor_id
+GROUP BY 
+    T.id, 
+    nombre_completo, 
+    T.modelo_de_vehiculo, 
+    T.color_del_vehiculo, 
+    T.año_del_vehiculo, 
+    T.capacidad_de_pasajeros, 
+    T.created_at, 
+    rc.origen, 
+    rc.destino, 
+    rc.descripcion;`);
             res.json(conductores.rows);
         } catch (error) {
             console.error("Error al obtener conductores:", error);
             res.status(500).json({ message: "Error interno del servidor" });
         }
-
-
     });
 
 
