@@ -232,6 +232,52 @@ export default function usuariosRoutes(pool) {
         }
     });
 
+    /**
+     * Obtener la foto de perfil de un usuario por su ID
+     */
+    router.get('/usuario/:userId/foto-perfil', async (req, res) => {
+        try {
+            const userId = parseInt(req.params.userId);
+
+            if (isNaN(userId)) {
+                return res.status(400).json({ message: "ID de usuario inválido" });
+            }
+
+            // cnsulta para obtener la foto de perfil del usuario, priorizando la de usuarios
+            // y si no existe tomando la de conductores (si el usuario es conductor)
+            const query = `
+                SELECT
+                    COALESCE(u.foto_de_perfil, c.foto_de_perfil) AS foto_de_perfil_final
+                FROM
+                    usuarios u
+                LEFT JOIN
+                    conductores c ON u.id = c.user_id
+                WHERE
+                    u.id = $1
+            `;
+
+            const result = await pool.query(query, [userId]);
+
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: "Usuario no encontrado" });
+            }
+
+            // esto si no hayfoto de perfil en ninguna de las dos tablas
+            if (!result.rows[0].foto_de_perfil_final) {
+                return res.status(404).json({ message: "No se encontró foto de perfil para este usuario" });
+            }
+
+            res.json({ 
+                userId: userId,
+                fotoPerfil: result.rows[0].foto_de_perfil_final 
+            });
+
+        } catch (error) {
+            console.error("Error al obtener foto de perfil:", error);
+            res.status(500).json({ message: "Error interno del servidor al procesar la solicitud" });
+        }
+    });
+
     return router;
 }
 
