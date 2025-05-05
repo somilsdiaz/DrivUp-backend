@@ -5,6 +5,9 @@ API RESTful para la aplicación DrivUp, que facilita la conexión entre conducto
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Node](https://img.shields.io/badge/node->=18.x-brightgreen.svg)
 ![Express](https://img.shields.io/badge/express-^4.21.2-lightgrey.svg)
+[![Backend Deployment](https://img.shields.io/badge/backend-deployed-success.svg)](https://drivup-backend.onrender.com/)
+[![Frontend Deployment](https://img.shields.io/badge/frontend-deployed-success.svg)](https://drivup.onrender.com/)
+[![Frontend Repo](https://img.shields.io/badge/frontend-repository-blue.svg)](https://github.com/somilsdiaz/DrivUp)
 
 ## Tabla de Contenidos
 
@@ -68,7 +71,7 @@ SECRET_KEY=tu_clave_secreta_para_jwt
 PORT=5000
 ```
 
-2. Asegúrate de que la base de datos PostgreSQL esté configurada con las tablas necesarias. 
+2. Asegúrate de que la base de datos PostgreSQL esté configurada con las tablas necesarias.
 
 3. Crea la carpeta `uploads` en la raíz del proyecto para almacenar archivos subidos:
 ```bash
@@ -150,4 +153,4 @@ El sistema utiliza PostgreSQL con las siguientes tablas principales:
 
 ## Licencia
 
-Este proyecto está licenciado bajo la [Licencia MIT](LICENSE). 
+Este proyecto está licenciado bajo la [Licencia MIT](LICENSE).
