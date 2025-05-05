@@ -156,6 +156,7 @@ export default function conductoresRoutes(pool) {
             const conductores = await pool.query(`
      SELECT 
     T.id,
+    T.user_id,
     CONCAT_WS(' ', T.name, T.second_name, T.last_name, T.second_last_name) AS nombre_completo,
     T.foto_de_perfil,
     T.marca_de_vehiculo,
@@ -171,6 +172,7 @@ export default function conductoresRoutes(pool) {
 FROM (
     SELECT 
         c.id, 
+        c.user_id,
         u.name, 
         u.second_name, 
         u.last_name, 
@@ -189,6 +191,7 @@ INNER JOIN reseñas AS r ON T.id = r.conductor_id
 INNER JOIN Ruta_Conductor AS rc ON T.id = rc.conductor_id
 GROUP BY 
     T.id, 
+    T.user_id,
     nombre_completo, 
     T.foto_de_perfil,
     T.marca_de_vehiculo,
