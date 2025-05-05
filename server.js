@@ -13,6 +13,7 @@ import usuariosRoutes from './routes/usuarios.js';
 import contactosRoutes from './routes/contactos.js';
 import mensajesRoutes from './routes/mensajes.js';
 import conductoresRoutes from './routes/conductores.js';
+import reseñasRoutes from './routes/reseñas.js';
 
 
 config();
@@ -31,7 +32,7 @@ const io = new Server(server, {
 
 const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL, 
-    ssl:true
+    ssl:true,
 });
 
 // Middleware
@@ -55,6 +56,7 @@ app.use('/', usuariosRoutes(pool));
 app.use('/', contactosRoutes(pool));
 app.use('/', mensajesRoutes(pool, io));
 app.use('/', conductoresRoutes(pool));
+app.use('/', reseñasRoutes(pool));
 //app.use('/noticias/img', express.static('public/noticias/img'));
 
 // Iniciar servidor
