@@ -38,7 +38,7 @@ export default function resenaRoutes(pool) {
     const { conductor_id } = req.query; 
     try {
       const reseñas = await pool.query(`
-                select u.name,u.last_name, r.reseña_id,r.calificacion,r.comentario,creado_en
+                select u.id,u.name,u.last_name, r.reseña_id,r.calificacion,r.comentario,creado_en
                 from usuarios as u inner join reseñas as r 
                 on u.id=r.pasajero_id
                 where r.conductor_id=${conductor_id}
