@@ -14,6 +14,7 @@ import contactosRoutes from './routes/contactos.js';
 import mensajesRoutes from './routes/mensajes.js';
 import conductoresRoutes from './routes/conductores.js';
 import reseñasRoutes from './routes/reseñas.js';
+import ruta_Usuario_Routes from './routes/ruta_usuario.js';
 
 
 config();
@@ -57,6 +58,7 @@ app.use('/', contactosRoutes(pool));
 app.use('/', mensajesRoutes(pool, io));
 app.use('/', conductoresRoutes(pool));
 app.use('/', reseñasRoutes(pool));
+app.use('/',ruta_Usuario_Routes(pool));
 //app.use('/noticias/img', express.static('public/noticias/img'));
 
 // Iniciar servidor
