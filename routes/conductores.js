@@ -156,6 +156,8 @@ export default function conductoresRoutes(pool) {
             const conductores = await pool.query(`
      SELECT 
     T.id,
+	T.user_id,
+	T.foto_de_perfil,
     CONCAT_WS(' ', T.name, T.second_name, T.last_name, T.second_last_name) AS nombre_completo,
     T.modelo_de_vehiculo, 
     T.color_del_vehiculo, 
@@ -169,6 +171,8 @@ export default function conductoresRoutes(pool) {
 FROM (
     SELECT 
         c.id, 
+		c.user_id,
+		c.foto_de_perfil,
         u.name, 
         u.second_name, 
         u.last_name, 
@@ -187,6 +191,8 @@ FROM (
 INNER JOIN reseñas AS r ON T.id = r.conductor_id
 GROUP BY 
     T.id, 
+	T.user_id,
+	T.foto_de_perfil,
     nombre_completo, 
     T.modelo_de_vehiculo, 
     T.color_del_vehiculo, 
@@ -195,8 +201,7 @@ GROUP BY
     T.origen_aproximado,
     T.destino_aproximado,
     T.descripcion,
-    T.created_at;
-`);
+    T.created_at;`);
             res.json(conductores.rows);
         } catch (error) {
             console.error("Error al obtener conductores:", error);
