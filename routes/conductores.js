@@ -156,53 +156,47 @@ export default function conductoresRoutes(pool) {
             const conductores = await pool.query(`
      SELECT 
     T.id,
-    T.user_id,
     CONCAT_WS(' ', T.name, T.second_name, T.last_name, T.second_last_name) AS nombre_completo,
-    T.foto_de_perfil,
-    T.marca_de_vehiculo,
     T.modelo_de_vehiculo, 
     T.color_del_vehiculo, 
     T.año_del_vehiculo, 
     T.capacidad_de_pasajeros, 
+    T.origen_aproximado,
+    T.destino_aproximado,
+    T.descripcion,
     T.created_at,
-    rc.origen, 
-    rc.destino, 
-    rc.descripcion, 
     AVG(r.calificacion) AS promedio_calificacion
 FROM (
     SELECT 
         c.id, 
-        c.user_id,
         u.name, 
         u.second_name, 
         u.last_name, 
-        u.second_last_name,
-        c.foto_de_perfil,
-        c.marca_de_vehiculo, 
+        u.second_last_name, 
         c.modelo_de_vehiculo, 
         c.color_del_vehiculo, 
         c.año_del_vehiculo, 
         c.capacidad_de_pasajeros, 
+        c.origen_aproximado,
+        c.destino_aproximado,
+        c.descripcion,
         c.created_at
     FROM usuarios AS u
     INNER JOIN conductores AS c ON c.user_id = u.id
 ) AS T
 INNER JOIN reseñas AS r ON T.id = r.conductor_id
-INNER JOIN Ruta_Conductor AS rc ON T.id = rc.conductor_id
 GROUP BY 
     T.id, 
-    T.user_id,
     nombre_completo, 
-    T.foto_de_perfil,
-    T.marca_de_vehiculo,
     T.modelo_de_vehiculo, 
     T.color_del_vehiculo, 
     T.año_del_vehiculo, 
     T.capacidad_de_pasajeros, 
-    T.created_at, 
-    rc.origen, 
-    rc.destino, 
-    rc.descripcion;`);
+    T.origen_aproximado,
+    T.destino_aproximado,
+    T.descripcion,
+    T.created_at;
+`);
             res.json(conductores.rows);
         } catch (error) {
             console.error("Error al obtener conductores:", error);
