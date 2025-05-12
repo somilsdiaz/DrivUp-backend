@@ -35,6 +35,18 @@ export default function ruta_Usuario_Routes(pool) {
     }
   });
 
+  // Ruta para obtener todas las rutas de usuarios
+router.get("/rutas-usuarios", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM ruta_usuario");
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("Error al obtener las rutas de usuarios:", error);
+    res.status(500).json({ message: "Error interno al obtener las rutas" });
+  }
+});
+
+
   
 
   return router;
