@@ -407,5 +407,69 @@ export default function solicitudesViajeRoutes(pool) {
         }
     });
 
+    /**
+     * endpoint para verificar si un usuario tiene solicitudes de viaje activas
+     * retorna true si el usuario tiene solicitudes en estados diferentes a los especificados
+     */
+    router.get("/verificar-solicitud-activa/:userId", async (req, res) => {
+        const { userId } = req.params;
+
+        // verificamos que se proporcione el ID de usuario
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "Se requiere el ID del usuario."
+            });
+        }
+
+        try {
+            // verificamos que el ID del usuario sea un número válido
+            const userIdNum = parseInt(userId);
+            if (isNaN(userIdNum)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "El ID del usuario debe ser un valor numérico válido."
+                });
+            }
+
+            // estados que se consideran como "no activos"
+            const estadosCompletados = [
+                'aceptado',
+                'en_progreso_solicitud',
+                'completado_solicitud',
+                'cancelado_pasajero',
+                'cancelado_sistema'
+            ];
+
+            // consulta para verificar si el usuario tiene solicitudes en estados diferentes a los especificados
+            const query = `
+                SELECT EXISTS (
+                    SELECT 1 FROM solicitudes_viaje 
+                    WHERE pasajero_id = $1 
+                    AND estado NOT IN (${estadosCompletados.map((_, i) => `$${i + 2}`).join(',')})
+                ) AS tiene_solicitud_activa;
+            `;
+
+            // ejecutamos la consulta con los parámetros
+            const result = await pool.query(query, [userIdNum, ...estadosCompletados]);
+            
+            // obtenemos el resultado de la consulta
+            const tieneSolicitudActiva = result.rows[0].tiene_solicitud_activa;
+
+            // formateamos la respuesta
+            res.status(200).json({
+                success: true,
+                tieneSolicitudActiva: tieneSolicitudActiva
+            });
+        } catch (error) {
+            console.error("Error al verificar solicitudes activas:", error);
+            res.status(500).json({
+                success: false,
+                message: "Error interno al verificar solicitudes activas.",
+                error: error.message
+            });
+        }
+    });
+
     return router;
 } 
