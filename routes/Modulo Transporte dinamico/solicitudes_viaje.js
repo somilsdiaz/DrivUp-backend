@@ -471,5 +471,74 @@ export default function solicitudesViajeRoutes(pool) {
         }
     });
 
+    /**
+     * endpoint para cancelar todas las solicitudes activas de un usuario
+     * cambia el estado a "cancelado_pasajero" para todas las solicitudes en estado pendiente, agrupada u ofertado
+     */
+    router.post("/cancelar-solicitud/:userId", async (req, res) => {
+        const { userId } = req.params;
+
+        // verificamos que se proporcione el ID de usuario
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "Se requiere el ID del usuario."
+            });
+        }
+
+        try {
+            // verificamos que el ID del usuario sea un número válido
+            const userIdNum = parseInt(userId);
+            if (isNaN(userIdNum)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "El ID del usuario debe ser un valor numérico válido."
+                });
+            }
+
+            // estados que se consideran activos y pueden ser cancelados
+            const estadosActivos = ['pendiente', 'agrupada', 'ofertado'];
+
+            // consulta para actualizar las solicitudes activas del usuario
+            const query = `
+                UPDATE solicitudes_viaje 
+                SET estado = 'cancelado_pasajero',
+                    updated_at = NOW()
+                WHERE pasajero_id = $1 
+                AND estado IN (${estadosActivos.map((_, i) => `$${i + 2}`).join(',')})
+                RETURNING id, estado, created_at, updated_at;
+            `;
+
+            // ejecutamos la consulta con los parámetros
+            const result = await pool.query(query, [userIdNum, ...estadosActivos]);
+            
+            // obtenemos las solicitudes actualizadas
+            const solicitudesCanceladas = result.rows;
+            const cantidadCanceladas = solicitudesCanceladas.length;
+
+            // formateamos la respuesta según si se cancelaron solicitudes o no
+            if (cantidadCanceladas > 0) {
+                res.status(200).json({
+                    success: true,
+                    message: `Se han cancelado ${cantidadCanceladas} solicitud(es) de viaje.`,
+                    solicitudesCanceladas: solicitudesCanceladas
+                });
+            } else {
+                res.status(200).json({
+                    success: true,
+                    message: "No se encontraron solicitudes activas para cancelar.",
+                    solicitudesCanceladas: []
+                });
+            }
+        } catch (error) {
+            console.error("Error al cancelar solicitudes:", error);
+            res.status(500).json({
+                success: false,
+                message: "Error interno al cancelar solicitudes de viaje.",
+                error: error.message
+            });
+        }
+    });
+
     return router;
 } 
