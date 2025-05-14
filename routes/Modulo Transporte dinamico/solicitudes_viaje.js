@@ -1,5 +1,6 @@
 import express from "express";
 import { calcularDistancia } from "../../workers/geocoding.js";
+import { calcularInfoViaje } from "../../workers/calculos_viaje.js";
 
 const router = express.Router();
 
@@ -269,6 +270,142 @@ export default function solicitudesViajeRoutes(pool) {
         }
     });
 
+    /**
+     * endpoint para calcular información de un viaje potencial
+     * retorna distancia exacta, tiempo estimado y rango de costos
+     */
+    router.post("/calcular-info-viaje", async (req, res) => {
+        const {
+            origen_lat,
+            origen_lon,
+            destino_lat,
+            destino_lon,
+            es_origen_concentracion,
+            es_destino_concentracion,
+            num_pasajeros
+        } = req.body;
+
+        // verificamos que estén presentes todos los datos básicos necesarios
+        if (!origen_lat || !origen_lon || !destino_lat || !destino_lon) {
+            return res.status(400).json({
+                success: false,
+                message: "Faltan campos obligatorios: origen_lat, origen_lon, destino_lat, destino_lon."
+            });
+        }
+
+        try {
+            // convertimos coordenadas a números para cálculos
+            const origenLat = parseFloat(origen_lat);
+            const origenLon = parseFloat(origen_lon);
+            const destinoLat = parseFloat(destino_lat);
+            const destinoLon = parseFloat(destino_lon);
+            
+            // verificamos que las coordenadas sean valores numéricos válidos
+            if (
+                isNaN(origenLat) || isNaN(origenLon) || 
+                isNaN(destinoLat) || isNaN(destinoLon)
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Las coordenadas deben ser valores numéricos válidos."
+                });
+            }
+            
+            // calculamos la distancia entre origen y destino
+            const distanciaMetros = calcularDistancia(origenLat, origenLon, destinoLat, destinoLon);
+            
+            // rechazamos la solicitud si la distancia es menor a 100 metros
+            if (distanciaMetros < 100) {
+                return res.status(400).json({
+                    success: false,
+                    message: "El origen y destino están demasiado cerca (menos de 100 metros). Deben ser lugares diferentes."
+                });
+            }
+
+            let resultado;
+            
+            // Si se especifica un número exacto de pasajeros
+            if (num_pasajeros) {
+                const numPasajeros = parseInt(num_pasajeros);
+                
+                if (isNaN(numPasajeros) || numPasajeros < 1 || numPasajeros > 5) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "El número de pasajeros debe ser un valor numérico entre 1 y 5."
+                    });
+                }
+                
+                // Calculamos la información para el número específico de pasajeros
+                const infoViaje = calcularInfoViaje(
+                    origenLat,
+                    origenLon,
+                    destinoLat,
+                    destinoLon,
+                    es_origen_concentracion || false,
+                    es_destino_concentracion || false,
+                    numPasajeros
+                );
+                
+                resultado = {
+                    info_viaje: infoViaje
+                };
+            } else {
+                // Si no se especifica un número de pasajeros, calculamos para 3, 4 y 5 pasajeros
+                const infoViaje3 = calcularInfoViaje(
+                    origenLat,
+                    origenLon,
+                    destinoLat,
+                    destinoLon,
+                    es_origen_concentracion || false,
+                    es_destino_concentracion || false,
+                    3
+                );
+                
+                const infoViaje4 = calcularInfoViaje(
+                    origenLat,
+                    origenLon,
+                    destinoLat,
+                    destinoLon,
+                    es_origen_concentracion || false,
+                    es_destino_concentracion || false,
+                    4
+                );
+                
+                const infoViaje5 = calcularInfoViaje(
+                    origenLat,
+                    origenLon,
+                    destinoLat,
+                    destinoLon,
+                    es_origen_concentracion || false,
+                    es_destino_concentracion || false,
+                    5
+                );
+                
+                resultado = {
+                    info_viaje: infoViaje4, // Mantener compatibilidad con versiones anteriores (4 pasajeros como default)
+                    escenarios: {
+                        pasajeros_3: infoViaje3,
+                        pasajeros_4: infoViaje4,
+                        pasajeros_5: infoViaje5
+                    },
+                    mensaje_escenarios: "Se proporcionan distintos escenarios para 3, 4 y 5 pasajeros ya que no se especificó el número exacto."
+                };
+            }
+
+            res.status(200).json({
+                success: true,
+                message: "Información de viaje calculada correctamente.",
+                ...resultado
+            });
+        } catch (error) {
+            console.error("Error al calcular información del viaje:", error);
+            res.status(500).json({
+                success: false,
+                message: "Error interno al calcular la información del viaje.",
+                error: error.message
+            });
+        }
+    });
 
     return router;
 } 
