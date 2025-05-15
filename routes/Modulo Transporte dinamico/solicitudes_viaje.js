@@ -47,7 +47,7 @@ export default function solicitudesViajeRoutes(pool) {
 
             // verificamos que las coordenadas sean valores numéricos válidos
             if (
-                isNaN(origenLat) || isNaN(origenLon) || 
+                isNaN(origenLat) || isNaN(origenLon) ||
                 isNaN(destinoLat) || isNaN(destinoLon)
             ) {
                 return res.status(400).json({
@@ -55,10 +55,10 @@ export default function solicitudesViajeRoutes(pool) {
                     message: "Las coordenadas deben ser valores numéricos válidos."
                 });
             }
-            
+
             // calculamos la distancia entre origen y destino usando la función de haversine
             const distancia = calcularDistancia(origenLat, origenLon, destinoLat, destinoLon);
-            
+
             // rechazamos la solicitud si la distancia es menor a 100 metros
             if (distancia < 100) {
                 return res.status(400).json({
@@ -75,10 +75,10 @@ export default function solicitudesViajeRoutes(pool) {
                     "SELECT id, latitud, longitud FROM puntos_concentracion WHERE id = $1",
                     [origen_pmcp_id]
                 );
-                
+
                 if (puntoConcResult.rows.length > 0) {
                     const puntoConc = puntoConcResult.rows[0];
-                    
+
                     // verificamos si el destino está cerca del punto de concentración de origen
                     const queryDestinoCerca = `
                         SELECT 1 FROM puntos_concentracion 
@@ -89,12 +89,12 @@ export default function solicitudesViajeRoutes(pool) {
                             100
                         )
                     `;
-                    
+
                     const destinoCercaResult = await pool.query(
-                        queryDestinoCerca, 
+                        queryDestinoCerca,
                         [origen_pmcp_id, destinoLat, destinoLon]
                     );
-                    
+
                     if (destinoCercaResult.rows.length > 0) {
                         return res.status(400).json({
                             success: false,
@@ -103,7 +103,7 @@ export default function solicitudesViajeRoutes(pool) {
                     }
                 }
             }
-            
+
             // caso 2: si el destino es un punto de concentración, verificamos que el origen no esté en el mismo punto
             if (es_destino_concentracion && destino_pmcp_id) {
                 // obtenemos la información del punto de concentración de destino
@@ -111,10 +111,10 @@ export default function solicitudesViajeRoutes(pool) {
                     "SELECT id, latitud, longitud FROM puntos_concentracion WHERE id = $1",
                     [destino_pmcp_id]
                 );
-                
+
                 if (puntoConcResult.rows.length > 0) {
                     const puntoConc = puntoConcResult.rows[0];
-                    
+
                     // verificamos si el origen está cerca del punto de concentración de destino
                     const queryOrigenCerca = `
                         SELECT 1 FROM puntos_concentracion 
@@ -125,12 +125,12 @@ export default function solicitudesViajeRoutes(pool) {
                             100
                         )
                     `;
-                    
+
                     const origenCercaResult = await pool.query(
-                        queryOrigenCerca, 
+                        queryOrigenCerca,
                         [destino_pmcp_id, origenLat, origenLon]
                     );
-                    
+
                     if (origenCercaResult.rows.length > 0) {
                         return res.status(400).json({
                             success: false,
@@ -183,9 +183,9 @@ export default function solicitudesViajeRoutes(pool) {
                 WHERE pasajero_id = $1 
                 AND estado = 'pendiente'
             `;
-            
+
             const solicitudPendienteResult = await pool.query(solicitudPendienteQuery, [pasajero_id]);
-            
+
             if (solicitudPendienteResult.rows.length > 0) {
                 return res.status(400).json({
                     success: false,
@@ -299,10 +299,10 @@ export default function solicitudesViajeRoutes(pool) {
             const origenLon = parseFloat(origen_lon);
             const destinoLat = parseFloat(destino_lat);
             const destinoLon = parseFloat(destino_lon);
-            
+
             // verificamos que las coordenadas sean valores numéricos válidos
             if (
-                isNaN(origenLat) || isNaN(origenLon) || 
+                isNaN(origenLat) || isNaN(origenLon) ||
                 isNaN(destinoLat) || isNaN(destinoLon)
             ) {
                 return res.status(400).json({
@@ -310,10 +310,10 @@ export default function solicitudesViajeRoutes(pool) {
                     message: "Las coordenadas deben ser valores numéricos válidos."
                 });
             }
-            
+
             // calculamos la distancia entre origen y destino
             const distanciaMetros = calcularDistancia(origenLat, origenLon, destinoLat, destinoLon);
-            
+
             // rechazamos la solicitud si la distancia es menor a 100 metros
             if (distanciaMetros < 100) {
                 return res.status(400).json({
@@ -323,18 +323,18 @@ export default function solicitudesViajeRoutes(pool) {
             }
 
             let resultado;
-            
+
             // Si se especifica un número exacto de pasajeros
             if (num_pasajeros) {
                 const numPasajeros = parseInt(num_pasajeros);
-                
+
                 if (isNaN(numPasajeros) || numPasajeros < 1 || numPasajeros > 5) {
                     return res.status(400).json({
                         success: false,
                         message: "El número de pasajeros debe ser un valor numérico entre 1 y 5."
                     });
                 }
-                
+
                 // Calculamos la información para el número específico de pasajeros
                 const infoViaje = calcularInfoViaje(
                     origenLat,
@@ -345,7 +345,7 @@ export default function solicitudesViajeRoutes(pool) {
                     es_destino_concentracion || false,
                     numPasajeros
                 );
-                
+
                 resultado = {
                     info_viaje: infoViaje
                 };
@@ -360,7 +360,7 @@ export default function solicitudesViajeRoutes(pool) {
                     es_destino_concentracion || false,
                     3
                 );
-                
+
                 const infoViaje4 = calcularInfoViaje(
                     origenLat,
                     origenLon,
@@ -370,7 +370,7 @@ export default function solicitudesViajeRoutes(pool) {
                     es_destino_concentracion || false,
                     4
                 );
-                
+
                 const infoViaje5 = calcularInfoViaje(
                     origenLat,
                     origenLon,
@@ -380,7 +380,7 @@ export default function solicitudesViajeRoutes(pool) {
                     es_destino_concentracion || false,
                     5
                 );
-                
+
                 resultado = {
                     info_viaje: infoViaje4, // Mantener compatibilidad con versiones anteriores (4 pasajeros como default)
                     escenarios: {
@@ -452,7 +452,7 @@ export default function solicitudesViajeRoutes(pool) {
 
             // ejecutamos la consulta con los parámetros
             const result = await pool.query(query, [userIdNum, ...estadosCompletados]);
-            
+
             // obtenemos el resultado de la consulta
             const tieneSolicitudActiva = result.rows[0].tiene_solicitud_activa;
 
@@ -511,7 +511,7 @@ export default function solicitudesViajeRoutes(pool) {
 
             // ejecutamos la consulta con los parámetros
             const result = await pool.query(query, [userIdNum, ...estadosActivos]);
-            
+
             // obtenemos las solicitudes actualizadas
             const solicitudesCanceladas = result.rows;
             const cantidadCanceladas = solicitudesCanceladas.length;
@@ -539,6 +539,20 @@ export default function solicitudesViajeRoutes(pool) {
             });
         }
     });
+
+    // Obtener todas las solicitudes con estado 'pendiente'
+    router.get("/solicitudes-viaje-pendientes", async (req, res) => {
+        try {
+            const result = await pool.query(
+                `SELECT * FROM solicitudes_viaje WHERE estado = 'pendiente'`
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error("Error al obtener solicitudes pendientes:", error);
+            res.status(500).json({ message: "Error interno del servidor" });
+        }
+    });
+
 
     return router;
 } 
