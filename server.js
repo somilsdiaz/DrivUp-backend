@@ -18,6 +18,7 @@ import ruta_Usuario_Routes from './routes/ruta_usuario.js';
 import puntosConcentracionRoutes from './routes/Modulo Transporte dinamico/puntos_concentracion.js';
 import solicitudesViajeRoutes from './routes/Modulo Transporte dinamico/solicitudes_viaje.js';
 import agrupacionesRoutes from './routes/Modulo Transporte dinamico/agrupaciones.js';
+import visualizacionRuta from './routes/Modulo Transporte dinamico/visualizacionRuta.js';
 
 
 config();
@@ -65,6 +66,7 @@ app.use('/',ruta_Usuario_Routes(pool));
 app.use('/', puntosConcentracionRoutes(pool));
 app.use('/', solicitudesViajeRoutes(pool));
 app.use('/', agrupacionesRoutes(pool));
+app.use('/', visualizacionRuta);
 
 //app.use('/noticias/img', express.static('public/noticias/img'));
 
