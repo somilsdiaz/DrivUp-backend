@@ -68,6 +68,7 @@ app.use('/', solicitudesViajeRoutes(pool));
 app.use('/', agrupacionesRoutes(pool));
 app.use('/', visualizacionRuta);
 
+
 //app.use('/noticias/img', express.static('public/noticias/img'));
 
 // Iniciar servidor
