@@ -114,7 +114,7 @@ export async function generateCombinations(pool) {
     'solicitudes_agrupadas_por_pmcp',
     jsonb_agg(
         jsonb_build_object(
-             'id',gsc.id,
+            'id', gsc.id,
             'pmcp_id', gsc.pmcp_id,
             'pmcp_es_origen_del_grupo', gsc.pmcp_es_origen_del_grupo,
             'solicitudes', (
@@ -135,7 +135,8 @@ export async function generateCombinations(pool) {
         )
     )
 ) AS resultado
-FROM grupos_solicitudes_candidatos gsc;
+FROM grupos_solicitudes_candidatos gsc
+WHERE gsc.estado_procesamiento = 'nuevo_grupo';
             `);
  
      const data2 = await pool.query(`
