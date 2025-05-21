@@ -1,4 +1,3 @@
-// Importar pg-format para inserciones masivas
 import format from 'pg-format';
 
 function getCombinations(arr, min, lon) {
@@ -26,13 +25,12 @@ function getCombinations(arr, min, lon) {
 
 async function combinaciones_viajes_propuestas(pool, obj) {
   try {
-    // Usar transacciones para optimizar las inserciones
+    // usar transacciones para optimizar las inserciones
     await pool.query('BEGIN');
-    
-    // Tamaño máximo de lote para evitar problemas de memoria o límites de DB
+
+    // tamaño máximo de lote para evitar problemas de memoria o límites de DB
     const BATCH_SIZE = 1000;
-    
-    // Preparar queries
+
     const combinacionesQuery = `
       INSERT INTO combinaciones_viaje_propuestas (
         grupo_candidato_id,
@@ -40,51 +38,51 @@ async function combinaciones_viajes_propuestas(pool, obj) {
         estado_procesamiento
       ) VALUES %L
       RETURNING id`;
-      
+
     const solicitudesQuery = `
       INSERT INTO solicitudes_en_combinacion_propuesta (
         combinacion_propuesta_id,
         solicitud_viaje_id
       ) VALUES %L`;
-    
-    // Procesar las combinaciones en lotes si hay muchas
+
+    // procesar las combinaciones en lotes si hay muchas
     const totalCombinaciones = obj.combinaciones.length;
     const combinacionIds = [];
-    
+
     for (let offset = 0; offset < totalCombinaciones; offset += BATCH_SIZE) {
-      // Tomar un subconjunto de combinaciones para este lote
+      // tomar un subconjunto de combinaciones para este lote
       const batchLimit = Math.min(offset + BATCH_SIZE, totalCombinaciones);
       const combinacionesBatch = obj.combinaciones.slice(offset, batchLimit);
-      
-      // Crear valores para las combinaciones de este lote
+
+      // crear valores para las combinaciones de este lote
       const combinacionesValues = combinacionesBatch.map(combinacion => [
-        obj.grupo_candidato_id, 
-        combinacion.capacidad_utilizada, 
+        obj.grupo_candidato_id,
+        combinacion.capacidad_utilizada,
         'optimizacion_pendiente'
       ]);
-      
-      // Insertar lote de combinaciones y obtener IDs
+
+      // insertar lote de combinaciones y obtener IDs
       const combinacionesInsert = format(combinacionesQuery, combinacionesValues);
       const idsResult = await pool.query(combinacionesInsert);
       combinacionIds.push(...idsResult.rows.map(row => row.id));
     }
-    
-    // Procesar las solicitudes en lotes
+
+    // procesar las solicitudes en lotes
     let solicitudesValues = [];
     let batchCounter = 0;
-    
+
     for (let i = 0; i < obj.combinaciones.length; i++) {
       const combinacionId = combinacionIds[i];
-      
+
       for (let j = 0; j < obj.combinaciones[i].pasajeros_participantes.length; j++) {
         solicitudesValues.push([
           combinacionId,
           obj.combinaciones[i].pasajeros_participantes[j].solicitud_id
         ]);
-        
+
         batchCounter++;
-        
-        // Si alcanzamos el tamaño del lote, insertar y reiniciar
+
+        // si alcanzamos el tamaño del lote, insertar y reiniciar
         if (batchCounter >= BATCH_SIZE) {
           const solicitudesInsert = format(solicitudesQuery, solicitudesValues);
           await pool.query(solicitudesInsert);
@@ -93,22 +91,22 @@ async function combinaciones_viajes_propuestas(pool, obj) {
         }
       }
     }
-    
-    // Insertar cualquier solicitud restante
+
+    // insertar cualquier solicitud restante
     if (solicitudesValues.length > 0) {
       const solicitudesInsert = format(solicitudesQuery, solicitudesValues);
       await pool.query(solicitudesInsert);
     }
-    
-    // Confirmar la transacción
+
+    // confirmar la transacción
     await pool.query('COMMIT');
     console.log(`Insertadas ${totalCombinaciones} combinaciones en la base de datos`);
-    
+
   } catch (error) {
-    // Revertir la transacción en caso de error
+    // revertir la transacción en caso de error
     await pool.query('ROLLBACK');
     console.log("Error al crear las combinaciones:", error);
-    throw error; // Re-lanzar el error para manejarlo en la función llamadora
+    throw error; // re-lanzar el error para manejarlo en la función llamadora
   }
 }
 
@@ -147,7 +145,7 @@ async function combinaciones(pool, grupos, conductores) {
         pmcp_es_origen_del_grupo: grupos[j].pmcp_es_origen_del_grupo,
         combinaciones: getCombinations(grupos[j].solicitudes, min, max),
       };
-      
+
       console.log(`Generadas ${combi.combinaciones.length} combinaciones para el grupo ${grupos[j].id}`);
       await combinaciones_viajes_propuestas(pool, combi);
     }
@@ -197,21 +195,21 @@ on c.id=cad.conductor_id
             `);
 
     const input1 = data1.rows[0]?.resultado;
-    
+
     // Verificar que haya datos para procesar
     if (!input1 || !input1.solicitudes_agrupadas_por_pmcp) {
       console.log("No hay nuevos grupos para procesar");
       return;
     }
-    
+
     const input2 = data2.rows;
-    
+
     // Verificar que haya conductores disponibles
     if (!input2 || input2.length === 0) {
       console.log("No hay conductores disponibles para generar combinaciones");
       return;
     }
-    
+
     await combinaciones(pool, input1.solicitudes_agrupadas_por_pmcp, input2);
   } catch (error) {
     console.log("Error al obtener las combinaciones:", error);
