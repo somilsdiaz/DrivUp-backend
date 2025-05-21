@@ -19,7 +19,7 @@ import solicitudesViajeRoutes from './routes/Modulo Transporte dinamico/solicitu
 import agrupaciones_combinaciones_optimizaciones_Routes from './routes/Modulo Transporte dinamico/agrupaciones_combinaciones_optimizaciones.js';
 import visualizacionRuta from './routes/Modulo Transporte dinamico/visualizacionRuta.js';
 import listaViajesRoutes from './routes/Modulo Transporte dinamico/listaViajes.js';
-
+import detallesViajeRoutes from './routes/Modulo Transporte dinamico/detalles_viajes.js';
 
 config();
 
@@ -68,6 +68,7 @@ app.use('/', solicitudesViajeRoutes(pool));
 app.use('/', agrupaciones_combinaciones_optimizaciones_Routes(pool));
 app.use('/', visualizacionRuta(pool));
 app.use('/', listaViajesRoutes(pool));
+app.use('/', detallesViajeRoutes(pool));
 
 
 //app.use('/noticias/img', express.static('public/noticias/img'));
