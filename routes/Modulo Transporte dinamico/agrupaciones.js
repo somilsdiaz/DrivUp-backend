@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import express from 'express';
 import { agruparSolicitudesPorPMCP } from '../../workers/bk002_01_groupRequests.js';
 import { generateCombinations } from '../../workers/bk002_02_generateCombinations.js';
+import { optimizeRoutes } from '../../workers/bk003_01_routesVisualization.js';
 
 const router = express.Router();
 
@@ -30,10 +31,11 @@ export default (pool) => {
       await agruparSolicitudesPorPMCP(pool);
       if(await nuevo_grupo(pool)){
         await generateCombinations(pool);
+        await optimizeRoutes(pool);
       }
-      res.status(200).json({ message: "Agrupación y combinacion completada con éxito."});
+      res.status(200).json({ message: "Agrupación, combinación y optimización completadas con éxito."});
     } catch (error) {
-      res.status(500).json({ message: "Error al agrupar solicitudes." });
+      res.status(500).json({ message: "Error al procesar solicitudes." });
     }
   });
 
@@ -42,12 +44,13 @@ export default (pool) => {
     try {
       console.log('Ejecutando agrupación automática cada 15 minutos...');
       await agruparSolicitudesPorPMCP(pool);
-   if(await nuevo_grupo(pool)){
+      if(await nuevo_grupo(pool)){
         await generateCombinations(pool);
+        await optimizeRoutes(pool);
       }
-      console.log('Agrupación automática completada.');
+      console.log('Proceso automático de agrupación completado.');
     } catch (error) {
-      console.error('Error en la agrupación automática:', error);
+      console.error('Error en el proceso automático:', error);
     }
   });
 
