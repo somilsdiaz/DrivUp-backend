@@ -5,7 +5,6 @@ import pg from 'pg';
 import cors from 'cors'; // Importar CORS
 import http from 'http';
 import { Server } from 'socket.io'; // Importar socket.io
-
 import path from 'path';
 
 // Importar rutas
@@ -19,6 +18,7 @@ import puntosConcentracionRoutes from './routes/Modulo Transporte dinamico/punto
 import solicitudesViajeRoutes from './routes/Modulo Transporte dinamico/solicitudes_viaje.js';
 import agrupaciones_combinaciones_optimizaciones_Routes from './routes/Modulo Transporte dinamico/agrupaciones_combinaciones_optimizaciones.js';
 import visualizacionRuta from './routes/Modulo Transporte dinamico/visualizacionRuta.js';
+import listaViajesRoutes from './routes/Modulo Transporte dinamico/listaViajes.js';
 
 
 config();
@@ -67,6 +67,7 @@ app.use('/', puntosConcentracionRoutes(pool));
 app.use('/', solicitudesViajeRoutes(pool));
 app.use('/', agrupaciones_combinaciones_optimizaciones_Routes(pool));
 app.use('/', visualizacionRuta(pool));
+app.use('/', listaViajesRoutes(pool));
 
 
 //app.use('/noticias/img', express.static('public/noticias/img'));
