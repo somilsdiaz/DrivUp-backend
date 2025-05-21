@@ -128,6 +128,30 @@ async function processGroup(pool, grupo) {
             continuar = pasajerosPendientes >= capacidadMinima;
         }
         
+        // Restaurar solicitudes no asignadas a estado "pendiente"
+        const solicitudesSinAsignarQuery = `
+            SELECT solicitud_viaje_id
+            FROM solicitudes_en_grupo_candidato
+            WHERE grupo_candidato_id = $1
+            AND solicitud_viaje_id NOT IN (
+                SELECT id FROM solicitudes_viaje WHERE estado = 'ofertado'
+            )
+        `;
+        
+        const solicitudesSinAsignarResult = await pool.query(solicitudesSinAsignarQuery, [grupo.id]);
+        const solicitudesSinAsignar = solicitudesSinAsignarResult.rows.map(r => r.solicitud_viaje_id);
+        
+        if (solicitudesSinAsignar.length > 0) {
+            const updateSolicitudesPendientesQuery = `
+                UPDATE solicitudes_viaje
+                SET estado = 'pendiente'
+                WHERE id = ANY($1)
+            `;
+            
+            await pool.query(updateSolicitudesPendientesQuery, [solicitudesSinAsignar]);
+            console.log(`${solicitudesSinAsignar.length} solicitudes del grupo ${grupo.id} restauradas a estado "pendiente"`);
+        }
+        
         // Marcar las combinaciones restantes como descartadas
         const combinacionesRestantes = combinaciones
             .filter(c => !combinacionesProcesadas.has(c.id))

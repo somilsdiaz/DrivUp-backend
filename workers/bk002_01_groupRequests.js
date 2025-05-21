@@ -1,5 +1,22 @@
 export async function agruparSolicitudesPorPMCP(pool) {
   try {
+    // Obtenemos los conductores disponibles para verificar la capacidad mínima
+    const { rows: conductores } = await pool.query(
+        `SELECT c.capacidad_de_pasajeros
+        FROM conductores AS c
+        INNER JOIN conductores_activos_disponibles AS cad
+        ON c.id = cad.conductor_id`
+    );
+
+    // Si no hay conductores disponibles, no podemos procesar grupos
+    if (conductores.length === 0) {
+      console.log("No hay conductores disponibles para procesar grupos");
+      return;
+    }
+
+    // Calcular la capacidad mínima
+    const capacidadMinima = Math.min(...conductores.map(c => c.capacidad_de_pasajeros));
+
     const { rows: solicitudes } = await pool.query(
       `SELECT * FROM solicitudes_viaje WHERE estado = 'pendiente'`
     );
@@ -24,6 +41,12 @@ export async function agruparSolicitudesPorPMCP(pool) {
     // Procesar cada grupo
     for (const clave in grupos) {
       const grupo = grupos[clave];
+      
+      // Verificar si el grupo tiene al menos la capacidad mínima de solicitudes
+      if (grupo.solicitudes.length < capacidadMinima) {
+        console.log(`Grupo ${clave} con ${grupo.solicitudes.length} solicitudes es menor que la capacidad mínima (${capacidadMinima}). No se creará el grupo.`);
+        continue; // Saltar este grupo y continuar con el siguiente
+      }
 
       // 1. Insertar en grupos_solicitudes_candidatos
       const insertGrupo = await pool.query(
