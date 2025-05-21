@@ -1,10 +1,10 @@
-// Utilidades para cálculos geoespaciales y optimización de rutas
+// utilidades para calculos geoespaciales y optimizacion de rutas
 import format from 'pg-format';
 
-// Función principal para optimizar rutas y crear ofertas de viaje
+// funcion principal para optimizar rutas y crear ofertas de viaje
 export async function optimizeRoutes(pool) {
     try {
-        // 1. Obtener grupos con combinaciones pendientes de optimización
+        // 1. obtener grupos con combinaciones pendientes de optimizacion
         const gruposQuery = `
             SELECT DISTINCT gsc.id, gsc.pmcp_id, gsc.pmcp_es_origen_del_grupo
             FROM grupos_solicitudes_candidatos gsc
@@ -20,7 +20,7 @@ export async function optimizeRoutes(pool) {
             return;
         }
 
-        // Procesar cada grupo
+        // procesar cada grupo
         for (const grupo of grupos) {
             await processGroup(pool, grupo);
         }
@@ -33,10 +33,10 @@ export async function optimizeRoutes(pool) {
 
 async function processGroup(pool, grupo) {
     try {
-        // Iniciar transacción para este grupo
+        // iniciar transaccion para este grupo
         await pool.query('BEGIN');
 
-        // 0. Obtener la capacidad mínima de vehículos disponibles
+        // 0. obtener la capacidad minima de vehiculos disponibles
         const capacidadMinQuery = `
             SELECT MIN(c.capacidad_de_pasajeros) as capacidad_minima
             FROM conductores c 
@@ -44,9 +44,9 @@ async function processGroup(pool, grupo) {
         `;
         
         const capacidadResult = await pool.query(capacidadMinQuery);
-        const capacidadMinima = capacidadResult.rows[0]?.capacidad_minima || 3; // Por defecto 3 si no hay conductores
+        const capacidadMinima = capacidadResult.rows[0]?.capacidad_minima || 3; // por defecto 3 si no hay conductores
 
-        // 1. Obtener todas las combinaciones pendientes para este grupo
+        // 1. obtener todas las combinaciones pendientes para este grupo
         const combinacionesQuery = `
             SELECT cvp.id, cvp.numero_pasajeros_en_combinacion
             FROM combinaciones_viaje_propuestas cvp
@@ -62,16 +62,16 @@ async function processGroup(pool, grupo) {
             return;
         }
 
-        // Conjuntos para llevar registro de combinaciones y solicitudes procesadas
+        // conjuntos para llevar registro de combinaciones y solicitudes procesadas
         const combinacionesProcesadas = new Set();
         const solicitudesAsignadas = new Set();
         let combinacionesViablesTotales = 0;
 
-        // Iterativamente buscar las mejores combinaciones hasta que no queden suficientes pasajeros
+        // iterativamente buscar las mejores combinaciones hasta que no queden suficientes pasajeros
         let continuar = true;
         
         while (continuar) {
-            // 2. Filtrar combinaciones que no contengan solicitudes ya asignadas
+            // 2. filtrar combinaciones que no contengan solicitudes ya asignadas
             const combinacionesElegibles = await filtrarCombinacionesElegibles(
                 pool, 
                 combinaciones.filter(c => !combinacionesProcesadas.has(c.id)),
@@ -83,12 +83,12 @@ async function processGroup(pool, grupo) {
                 break;
             }
             
-            // 3. Evaluar cada combinación elegible para encontrar la óptima
+            // 3. evaluar cada combinacion elegible para encontrar la optima
             const combinacionesEvaluadas = await Promise.all(
                 combinacionesElegibles.map(combinacion => evaluarCombinacion(pool, combinacion, grupo))
             );
             
-            // 4. Filtrar combinaciones viables
+            // 4. filtrar combinaciones viables
             const combinacionesViables = combinacionesEvaluadas.filter(c => c.esViable);
             
             if (combinacionesViables.length === 0) {
@@ -96,20 +96,20 @@ async function processGroup(pool, grupo) {
                 break;
             }
             
-            // 5. Encontrar la combinación óptima según los criterios
+            // 5. encontrar la combinacion optima segun los criterios
             const combinacionOptima = encontrarCombinacionOptima(combinacionesViables);
             
-            // 6. Crear viaje y registros asociados para la combinación óptima
+            // 6. crear viaje y registros asociados para la combinacion optima
             await crearOfertaViaje(pool, combinacionOptima, grupo);
             combinacionesViablesTotales++;
             
-            // 7. Marcar esta combinación como procesada
+            // 7. marcar esta combinacion como procesada
             combinacionesProcesadas.add(combinacionOptima.id);
             
-            // 8. Registrar solicitudes asignadas
+            // 8. registrar solicitudes asignadas
             combinacionOptima.solicitudes.forEach(s => solicitudesAsignadas.add(s.id));
             
-            // 9. Verificar si quedan suficientes pasajeros sin asignar para continuar
+            // 9. verificar si quedan suficientes pasajeros sin asignar para continuar
             const solicitudesPendientesQuery = `
                 SELECT COUNT(DISTINCT solicitud_viaje_id) as pendientes
                 FROM solicitudes_en_grupo_candidato
@@ -124,11 +124,11 @@ async function processGroup(pool, grupo) {
             
             console.log(`Quedan ${pasajerosPendientes} pasajeros sin asignar en el grupo ${grupo.id}`);
             
-            // Determinar si continuar el proceso
+            // determinar si continuar el proceso
             continuar = pasajerosPendientes >= capacidadMinima;
         }
         
-        // Restaurar solicitudes no asignadas a estado "pendiente"
+        // restaurar solicitudes no asignadas a estado "pendiente"
         const solicitudesSinAsignarQuery = `
             SELECT solicitud_viaje_id
             FROM solicitudes_en_grupo_candidato
@@ -152,7 +152,7 @@ async function processGroup(pool, grupo) {
             console.log(`${solicitudesSinAsignar.length} solicitudes del grupo ${grupo.id} restauradas a estado "pendiente"`);
         }
         
-        // Marcar las combinaciones restantes como descartadas
+        // marcar las combinaciones restantes como descartadas
         const combinacionesRestantes = combinaciones
             .filter(c => !combinacionesProcesadas.has(c.id))
             .map(c => c.id);
@@ -173,7 +173,7 @@ async function processGroup(pool, grupo) {
         await pool.query('ROLLBACK');
         console.error(`Error procesando el grupo ${grupo.id}:`, error);
 
-        // Marcar combinaciones con error
+        // marcar combinaciones con error
         try {
             const errorQuery = `
                 UPDATE combinaciones_viaje_propuestas
@@ -187,7 +187,7 @@ async function processGroup(pool, grupo) {
     }
 }
 
-// Filtra combinaciones que no tengan solicitudes ya asignadas
+// filtra combinaciones que no tengan solicitudes ya asignadas
 async function filtrarCombinacionesElegibles(pool, combinaciones, solicitudesAsignadas) {
     if (combinaciones.length === 0) return [];
     if (solicitudesAsignadas.size === 0) return combinaciones;
@@ -195,7 +195,7 @@ async function filtrarCombinacionesElegibles(pool, combinaciones, solicitudesAsi
     const resultado = [];
     
     for (const combinacion of combinaciones) {
-        // Obtener las solicitudes de esta combinación
+        // obtener las solicitudes de esta combinacion
         const solicitudesQuery = `
             SELECT solicitud_viaje_id
             FROM solicitudes_en_combinacion_propuesta
@@ -205,10 +205,10 @@ async function filtrarCombinacionesElegibles(pool, combinaciones, solicitudesAsi
         const solicitudesResult = await pool.query(solicitudesQuery, [combinacion.id]);
         const solicitudesIds = solicitudesResult.rows.map(r => r.solicitud_viaje_id);
         
-        // Verificar si alguna solicitud ya está asignada
+        // verificar si alguna solicitud ya esta asignada
         const tieneAsignadas = solicitudesIds.some(id => solicitudesAsignadas.has(id));
         
-        // Si no tiene solicitudes asignadas, es elegible
+        // si no tiene solicitudes asignadas, es elegible
         if (!tieneAsignadas) {
             resultado.push(combinacion);
         }
@@ -218,7 +218,7 @@ async function filtrarCombinacionesElegibles(pool, combinaciones, solicitudesAsi
 }
 
 async function evaluarCombinacion(pool, combinacion, grupo) {
-    // 1. Obtener detalles de las solicitudes en esta combinación
+    // 1. obtener detalles de las solicitudes en esta combinacion
     const solicitudesQuery = `
         SELECT 
         sv.id, 
@@ -237,7 +237,7 @@ async function evaluarCombinacion(pool, combinacion, grupo) {
     const solicitudesResult = await pool.query(solicitudesQuery, [combinacion.id]);
     const solicitudes = solicitudesResult.rows;
 
-    // 2. Obtener datos del punto de concentración
+    // 2. obtener datos del punto de concentracion
     const pmcpQuery = `
         SELECT latitud, longitud, nombre
         FROM puntos_concentracion
@@ -247,19 +247,19 @@ async function evaluarCombinacion(pool, combinacion, grupo) {
     const pmcpResult = await pool.query(pmcpQuery, [grupo.pmcp_id]);
     const pmcp = pmcpResult.rows[0];
 
-    // 3. Calcular la ruta óptima
+    // 3. calcular la ruta optima
     const rutaOptima = calcularRutaOptima(solicitudes, pmcp, grupo.pmcp_es_origen_del_grupo);
 
-    // 4. Calcular métricas de la ruta (distancia, tiempo, costos)
+    // 4. calcular metricas de la ruta (distancia, tiempo, costos)
     const metricas = calcularMetricas(rutaOptima);
 
-    // 5. Determinar si la combinación es viable
+    // 5. determinar si la combinacion es viable
     const esViable = evaluarViabilidad(metricas, combinacion.numero_pasajeros_en_combinacion);
 
-    // 6. Calcular tarifa por pasajero si es viable
+    // 6. calcular tarifa por pasajero si es viable
     const tarifas = esViable ? calcularTarifasPasajeros(rutaOptima, solicitudes) : [];
 
-    // 7. Calcular ganancia estimada del conductor
+    // 7. calcular ganancia estimada del conductor
     const gananciaEstimada = tarifas.reduce((sum, t) => sum + t.tarifa, 0);
 
     return {
@@ -276,14 +276,14 @@ async function evaluarCombinacion(pool, combinacion, grupo) {
 }
 
 function calcularRutaOptima(solicitudes, pmcp, esPmcpOrigen) {
-    // Estructura para almacenar los puntos de la ruta
+    // estructura para almacenar los puntos de la ruta
     const puntos = [];
     const ordenRecogida = [];
     const ordenEntrega = [];
 
-    // Determinar puntos de origen y destino
+    // determinar puntos de origen y destino
     if (esPmcpOrigen) {
-        // Si el PMCP es el origen, el conductor recoge a todos desde el PMCP
+        // si el PMCP es el origen, el conductor recoge a todos desde el PMCP
         // y luego los entrega en sus respectivos destinos
         puntos.push({
             tipo: 'pmcp',
@@ -292,19 +292,19 @@ function calcularRutaOptima(solicitudes, pmcp, esPmcpOrigen) {
             nombre: pmcp.nombre
         });
 
-        // Ordenar destinos para optimizar ruta (algoritmo greedy simple)
+        // ordenar destinos para optimizar ruta (algoritmo greedy simple)
         let ultimoPunto = { lat: pmcp.latitud, lon: pmcp.longitud };
         const destinos = [...solicitudes];
 
-        // Asignar orden de recogida (todos en el PMCP)
+        // asignar orden de recogida (todos en el PMCP)
         solicitudes.forEach((sol, index) => {
             ordenRecogida.push({
                 solicitudId: sol.id,
-                orden: 0 // Todos se recogen en el PMCP (orden 0)
+                orden: 0 // todos se recogen en el PMCP (orden 0)
             });
         });
 
-        // Asignar orden de entrega (optimizando ruta)
+        // asignar orden de entrega (optimizando ruta)
         let orden = 1;
         while (destinos.length > 0) {
             const indiceMasCercano = encontrarPuntoMasCercano(ultimoPunto, destinos);
@@ -326,20 +326,20 @@ function calcularRutaOptima(solicitudes, pmcp, esPmcpOrigen) {
             orden++;
         }
     } else {
-        // Si el PMCP es el destino, el conductor recoge a todos en sus respectivos orígenes
+        // si el PMCP es el destino, el conductor recoge a todos en sus respectivos origenes
         // y luego los entrega a todos en el PMCP
 
-        // Ordenar orígenes para optimizar ruta (algoritmo greedy simple)
-        let ultimoPunto = null; // Se definirá con el primer origen
+        // ordenar origenes para optimizar ruta (algoritmo greedy simple)
+        let ultimoPunto = null; // se definira con el primer origen
         const origenes = [...solicitudes];
 
-        // Asignar orden de recogida (optimizando ruta)
+        // asignar orden de recogida (optimizando ruta)
         let orden = 1;
         while (origenes.length > 0) {
             let indiceMasCercano;
 
             if (ultimoPunto === null) {
-                // Para el primer punto, elegimos cualquiera (o podríamos elegir el más cercano a un punto de referencia)
+                // para el primer punto, elegimos cualquiera (o podriamos elegir el mas cercano a un punto de referencia)
                 indiceMasCercano = 0;
             } else {
                 indiceMasCercano = encontrarPuntoMasCercano(ultimoPunto, origenes, true);
@@ -363,7 +363,7 @@ function calcularRutaOptima(solicitudes, pmcp, esPmcpOrigen) {
             orden++;
         }
 
-        // Añadir el PMCP como destino final
+        // añadir el PMCP como destino final
         puntos.push({
             tipo: 'pmcp',
             lat: pmcp.latitud,
@@ -371,16 +371,16 @@ function calcularRutaOptima(solicitudes, pmcp, esPmcpOrigen) {
             nombre: pmcp.nombre
         });
 
-        // Asignar orden de entrega (todos en el PMCP)
+        // asignar orden de entrega (todos en el PMCP)
         solicitudes.forEach((sol) => {
             ordenEntrega.push({
                 solicitudId: sol.id,
-                orden: orden // Todos se entregan en el PMCP al final
+                orden: orden // todos se entregan en el PMCP al final
             });
         });
     }
 
-    // Convertir puntos a formato GeoJSON LineString
+    // convertir puntos a formato GeoJSON LineString
     const geoJson = {
         type: 'LineString',
         coordinates: puntos.map(p => [parseFloat(p.lon), parseFloat(p.lat)])
@@ -420,7 +420,7 @@ function encontrarPuntoMasCercano(puntoReferencia, puntos, esOrigen = false) {
 }
 
 function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
-    // Convertir de grados a radianes
+    // convertir de grados a radianes
     const toRad = (valor) => valor * Math.PI / 180;
 
     const dLat = toRad(lat2 - lat1);
@@ -428,18 +428,18 @@ function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
     lat1 = toRad(lat1);
     lat2 = toRad(lat2);
 
-    // Fórmula de Haversine
+    // formula de haversine
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    // Radio de la Tierra en kilómetros
+    // radio de la tierra en kilometros
     const radioTierra = 6371;
     return radioTierra * c;
 }
 
 function calcularMetricas(ruta) {
-    // Calcular distancia total de la ruta
+    // calcular distancia total de la ruta
     let distanciaTotal = 0;
     const puntos = ruta.puntos;
 
@@ -457,7 +457,7 @@ function calcularMetricas(ruta) {
         distanciaTotal += distancia;
     }
 
-    // Estimar tiempo en minutos (asumiendo velocidad promedio de 30 km/h en ciudad)
+    // estimar tiempo en minutos (asumiendo velocidad promedio de 30 km/h en ciudad)
     const velocidadPromedio = 30; // km/h
     const tiempoEstimado = Math.ceil((distanciaTotal / velocidadPromedio) * 60); // en minutos
 
@@ -468,10 +468,10 @@ function calcularMetricas(ruta) {
 }
 
 function evaluarViabilidad(metricas, numeroPasajeros) {
-    // Criterios de viabilidad:
-    // 1. Distancia total no debe ser excesiva (ej: < 30 km)
-    // 2. Tiempo estimado razonable (ej: < 60 minutos)
-    // 3. Número mínimo de pasajeros (ej: >= 3)
+    // criterios de viabilidad:
+    // 1. distancia total no debe ser excesiva (ej: < 30 km)
+    // 2. tiempo estimado razonable (ej: < 60 minutos)
+    // 3. numero minimo de pasajeros (ej: >= 3)
 
     const distanciaMaxima = 30; // km
     const tiempoMaximo = 60; // minutos
@@ -485,13 +485,13 @@ function evaluarViabilidad(metricas, numeroPasajeros) {
 }
 
 function calcularTarifasPasajeros(ruta, solicitudes) {
-    const tarifaBase = 2000; // Tarifa base por pasajero
-    const tarifaPorKm = 1000; // Tarifa adicional por km
+    const tarifaBase = 2000; // tarifa base por pasajero
+    const tarifaPorKm = 1000; // tarifa adicional por km
     const tarifas = [];
 
-    // Calcular tarifa para cada pasajero basada en su distancia individual
+    // calcular tarifa para cada pasajero basada en su distancia individual
     for (const solicitud of solicitudes) {
-        // Calcular la distancia directa entre origen y destino
+        // calcular la distancia directa entre origen y destino
         const distanciaDirecta = calcularDistanciaHaversine(
             solicitud.origen_lat,
             solicitud.origen_lon,
@@ -499,8 +499,8 @@ function calcularTarifasPasajeros(ruta, solicitudes) {
             solicitud.destino_lon
         );
 
-        // Calcular tarifa (base + proporcional a la distancia)
-        // Aplicamos un descuento para beneficiar al pasajero por compartir el viaje
+        // calcular tarifa (base + proporcional a la distancia)
+        // aplicamos un descuento para beneficiar al pasajero por compartir el viaje
         const descuentoPorCompartir = 0.8; // 20% de descuento
         const tarifa = Math.ceil((tarifaBase + (distanciaDirecta * tarifaPorKm)) * descuentoPorCompartir);
 
@@ -515,30 +515,30 @@ function calcularTarifasPasajeros(ruta, solicitudes) {
 }
 
 function encontrarCombinacionOptima(combinaciones) {
-    // Ordenar por prioridades:
-    // 1. Maximizar número de pasajeros
-    // 2. Minimizar distancia
-    // 3. Maximizar ganancia para el conductor
+    // ordenar por prioridades:
+    // 1. maximizar numero de pasajeros
+    // 2. minimizar distancia
+    // 3. maximizar ganancia para el conductor
 
     return combinaciones.sort((a, b) => {
-        // Primero por número de pasajeros (mayor es mejor)
+        // primero por numero de pasajeros (mayor es mejor)
         if (b.numeroPassajeros !== a.numeroPassajeros) {
             return b.numeroPassajeros - a.numeroPassajeros;
         }
 
-        // Si tienen igual número de pasajeros, ordenar por distancia (menor es mejor)
+        // si tienen igual numero de pasajeros, ordenar por distancia (menor es mejor)
         if (a.distanciaTotal !== b.distanciaTotal) {
             return a.distanciaTotal - b.distanciaTotal;
         }
 
-        // Si tienen igual distancia, ordenar por ganancia (mayor es mejor)
+        // si tienen igual distancia, ordenar por ganancia (mayor es mejor)
         return b.gananciaEstimada - a.gananciaEstimada;
-    })[0]; // Tomar el primero después de ordenar
+    })[0]; // tomar el primero despues de ordenar
 }
 
 async function crearOfertaViaje(pool, combinacion, grupo) {
     try {
-        // 1. Crear el viaje
+        // 1. crear el viaje
         const viajeQuery = `
         INSERT INTO viajes(
             conductor_id,
@@ -570,7 +570,7 @@ async function crearOfertaViaje(pool, combinacion, grupo) {
         const viajeResult = await pool.query(viajeQuery, viajeParams);
         const viajeId = viajeResult.rows[0].id;
 
-        // 2. Crear registros en viaje_pasajeros
+        // 2. crear registros en viaje_pasajeros
         const viajePasajerosValues = combinacion.solicitudes.map(solicitud => {
             const ordenRecogida = combinacion.ruta.ordenRecogida.find(
                 or => or.solicitudId === solicitud.id
@@ -606,7 +606,7 @@ async function crearOfertaViaje(pool, combinacion, grupo) {
 
         await pool.query(viajePasajerosQuery);
 
-        // 3. Actualizar el estado de las solicitudes de viaje a 'ofertado'
+        // 3. actualizar el estado de las solicitudes de viaje a 'ofertado'
         const solicitudIds = combinacion.solicitudes.map(s => s.id);
         const updateSolicitudesQuery = `
         UPDATE solicitudes_viaje
@@ -616,7 +616,7 @@ async function crearOfertaViaje(pool, combinacion, grupo) {
 
         await pool.query(updateSolicitudesQuery, [solicitudIds]);
 
-        // 4. Actualizar el estado de la combinación a 'optimizada_oferta_creada'
+        // 4. actualizar el estado de la combinacion a 'optimizada_oferta_creada'
         const updateCombinacionQuery = `
         UPDATE combinaciones_viaje_propuestas
         SET estado_procesamiento = 'optimizada_oferta_creada'

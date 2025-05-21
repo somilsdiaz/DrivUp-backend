@@ -66,7 +66,7 @@ app.use('/',ruta_Usuario_Routes(pool));
 app.use('/', puntosConcentracionRoutes(pool));
 app.use('/', solicitudesViajeRoutes(pool));
 app.use('/', agrupaciones_combinaciones_optimizaciones_Routes(pool));
-app.use('/', visualizacionRuta);
+app.use('/', visualizacionRuta(pool));
 
 
 //app.use('/noticias/img', express.static('public/noticias/img'));
