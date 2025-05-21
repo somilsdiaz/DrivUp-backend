@@ -36,6 +36,16 @@ async function processGroup(pool, grupo) {
         // Iniciar transacción para este grupo
         await pool.query('BEGIN');
 
+        // 0. Obtener la capacidad mínima de vehículos disponibles
+        const capacidadMinQuery = `
+            SELECT MIN(c.capacidad_de_pasajeros) as capacidad_minima
+            FROM conductores c 
+            JOIN conductores_activos_disponibles cad ON c.id = cad.conductor_id
+        `;
+        
+        const capacidadResult = await pool.query(capacidadMinQuery);
+        const capacidadMinima = capacidadResult.rows[0]?.capacidad_minima || 3; // Por defecto 3 si no hay conductores
+
         // 1. Obtener todas las combinaciones pendientes para este grupo
         const combinacionesQuery = `
             SELECT cvp.id, cvp.numero_pasajeros_en_combinacion
@@ -52,49 +62,88 @@ async function processGroup(pool, grupo) {
             return;
         }
 
-        // 2. Evaluar cada combinación para encontrar la óptima
-        const combinacionesEvaluadas = await Promise.all(
-            combinaciones.map(combinacion => evaluarCombinacion(pool, combinacion, grupo))
-        );
+        // Conjuntos para llevar registro de combinaciones y solicitudes procesadas
+        const combinacionesProcesadas = new Set();
+        const solicitudesAsignadas = new Set();
+        let combinacionesViablesTotales = 0;
 
-        // 3. Filtrar combinaciones viables
-        const combinacionesViables = combinacionesEvaluadas.filter(c => c.esViable);
-
-        if (combinacionesViables.length === 0) {
-            // No se encontró ninguna combinación viable, marcar todas como no rentables
-            const updateQuery = `
-                UPDATE combinaciones_viaje_propuestas
-                SET estado_procesamiento = 'descartada_no_rentable'
-                WHERE grupo_candidato_id = $1 AND estado_procesamiento = 'optimizacion_pendiente'
+        // Iterativamente buscar las mejores combinaciones hasta que no queden suficientes pasajeros
+        let continuar = true;
+        
+        while (continuar) {
+            // 2. Filtrar combinaciones que no contengan solicitudes ya asignadas
+            const combinacionesElegibles = await filtrarCombinacionesElegibles(
+                pool, 
+                combinaciones.filter(c => !combinacionesProcesadas.has(c.id)),
+                solicitudesAsignadas
+            );
+            
+            if (combinacionesElegibles.length === 0) {
+                console.log(`No quedan combinaciones elegibles para el grupo ${grupo.id}`);
+                break;
+            }
+            
+            // 3. Evaluar cada combinación elegible para encontrar la óptima
+            const combinacionesEvaluadas = await Promise.all(
+                combinacionesElegibles.map(combinacion => evaluarCombinacion(pool, combinacion, grupo))
+            );
+            
+            // 4. Filtrar combinaciones viables
+            const combinacionesViables = combinacionesEvaluadas.filter(c => c.esViable);
+            
+            if (combinacionesViables.length === 0) {
+                console.log(`No quedan combinaciones viables para el grupo ${grupo.id}`);
+                break;
+            }
+            
+            // 5. Encontrar la combinación óptima según los criterios
+            const combinacionOptima = encontrarCombinacionOptima(combinacionesViables);
+            
+            // 6. Crear viaje y registros asociados para la combinación óptima
+            await crearOfertaViaje(pool, combinacionOptima, grupo);
+            combinacionesViablesTotales++;
+            
+            // 7. Marcar esta combinación como procesada
+            combinacionesProcesadas.add(combinacionOptima.id);
+            
+            // 8. Registrar solicitudes asignadas
+            combinacionOptima.solicitudes.forEach(s => solicitudesAsignadas.add(s.id));
+            
+            // 9. Verificar si quedan suficientes pasajeros sin asignar para continuar
+            const solicitudesPendientesQuery = `
+                SELECT COUNT(DISTINCT solicitud_viaje_id) as pendientes
+                FROM solicitudes_en_grupo_candidato
+                WHERE grupo_candidato_id = $1
+                AND solicitud_viaje_id NOT IN (
+                    SELECT id FROM solicitudes_viaje WHERE estado = 'ofertado'
+                )
             `;
-            await pool.query(updateQuery, [grupo.id]);
-            await pool.query('COMMIT');
-            console.log(`Ninguna combinación viable para el grupo ${grupo.id}. Todas marcadas como no rentables.`);
-            return;
+            
+            const pendientesResult = await pool.query(solicitudesPendientesQuery, [grupo.id]);
+            const pasajerosPendientes = pendientesResult.rows[0].pendientes;
+            
+            console.log(`Quedan ${pasajerosPendientes} pasajeros sin asignar en el grupo ${grupo.id}`);
+            
+            // Determinar si continuar el proceso
+            continuar = pasajerosPendientes >= capacidadMinima;
         }
-
-        // 4. Encontrar la combinación óptima según los criterios
-        const combinacionOptima = encontrarCombinacionOptima(combinacionesViables);
-
-        // 5. Crear viaje y registros asociados para la combinación óptima
-        await crearOfertaViaje(pool, combinacionOptima, grupo);
-
-        // 6. Marcar las demás combinaciones como descartadas
-        const combinacionesDescartar = combinaciones
-            .filter(c => c.id !== combinacionOptima.id)
+        
+        // Marcar las combinaciones restantes como descartadas
+        const combinacionesRestantes = combinaciones
+            .filter(c => !combinacionesProcesadas.has(c.id))
             .map(c => c.id);
-
-        if (combinacionesDescartar.length > 0) {
+        
+        if (combinacionesRestantes.length > 0) {
             const descartarQuery = `
                 UPDATE combinaciones_viaje_propuestas
                 SET estado_procesamiento = 'descartada_no_rentable'
                 WHERE id = ANY($1)
             `;
-            await pool.query(descartarQuery, [combinacionesDescartar]);
+            await pool.query(descartarQuery, [combinacionesRestantes]);
         }
-
+        
         await pool.query('COMMIT');
-        console.log(`Procesamiento completo para el grupo ${grupo.id}. Combinación óptima: ${combinacionOptima.id}`);
+        console.log(`Procesamiento completo para el grupo ${grupo.id}. Combinaciones óptimas creadas: ${combinacionesViablesTotales}`);
 
     } catch (error) {
         await pool.query('ROLLBACK');
@@ -103,15 +152,45 @@ async function processGroup(pool, grupo) {
         // Marcar combinaciones con error
         try {
             const errorQuery = `
-            UPDATE combinaciones_viaje_propuestas
-            SET estado_procesamiento = 'error_optimizacion'
-            WHERE grupo_candidato_id = $1 AND estado_procesamiento = 'optimizacion_pendiente'
-        `;
+                UPDATE combinaciones_viaje_propuestas
+                SET estado_procesamiento = 'error_optimizacion'
+                WHERE grupo_candidato_id = $1 AND estado_procesamiento = 'optimizacion_pendiente'
+            `;
             await pool.query(errorQuery, [grupo.id]);
         } catch (updateError) {
             console.error("Error al marcar combinaciones con error:", updateError);
         }
     }
+}
+
+// Filtra combinaciones que no tengan solicitudes ya asignadas
+async function filtrarCombinacionesElegibles(pool, combinaciones, solicitudesAsignadas) {
+    if (combinaciones.length === 0) return [];
+    if (solicitudesAsignadas.size === 0) return combinaciones;
+    
+    const resultado = [];
+    
+    for (const combinacion of combinaciones) {
+        // Obtener las solicitudes de esta combinación
+        const solicitudesQuery = `
+            SELECT solicitud_viaje_id
+            FROM solicitudes_en_combinacion_propuesta
+            WHERE combinacion_propuesta_id = $1
+        `;
+        
+        const solicitudesResult = await pool.query(solicitudesQuery, [combinacion.id]);
+        const solicitudesIds = solicitudesResult.rows.map(r => r.solicitud_viaje_id);
+        
+        // Verificar si alguna solicitud ya está asignada
+        const tieneAsignadas = solicitudesIds.some(id => solicitudesAsignadas.has(id));
+        
+        // Si no tiene solicitudes asignadas, es elegible
+        if (!tieneAsignadas) {
+            resultado.push(combinacion);
+        }
+    }
+    
+    return resultado;
 }
 
 async function evaluarCombinacion(pool, combinacion, grupo) {
