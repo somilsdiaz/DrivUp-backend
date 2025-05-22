@@ -85,7 +85,9 @@ export function calcularCostoViaje(distanciaKm, numPasajeros = 1) {
     case 1: descuentoPorCompartir = 1.0; break; // sin descuento
     case 2: descuentoPorCompartir = 0.9; break; // 10% de descuento
     case 3: descuentoPorCompartir = 0.85; break; // 15% de descuento
-    default: descuentoPorCompartir = 0.8; break; // 20% de descuento para 4+ pasajeros (como en bk002_03_optimizeTrips.js)
+    case 4: descuentoPorCompartir = 0.8; break; // 20% de descuento
+    case 5: descuentoPorCompartir = 0.75; break; // 25% de descuento
+    default: descuentoPorCompartir = 0.8; break; // por defecto 20% para casos no especificados
   }
   
   // costo por pasajero despues de aplicar el descuento
