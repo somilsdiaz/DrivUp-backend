@@ -3,6 +3,39 @@ import express from "express";
 const router = express.Router();
 
 export default function activarConductor(pool) {
+    // Variable para almacenar el intervalo de limpieza
+    let limpiezaIntervalId = null;
+    
+    // Función para limpiar conductores expirados
+    const limpiarConductoresExpirados = async () => {
+        try {
+            console.log('Ejecutando limpieza automática de conductores expirados...');
+            const deleteResult = await pool.query(
+                `DELETE FROM conductores_activos_disponibles
+                WHERE sesion_expira_en < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')
+                RETURNING conductor_id`
+            );
+            
+            if (deleteResult.rows.length > 0) {
+                console.log(`Limpieza automática: ${deleteResult.rows.length} conductores expirados eliminados`);
+            }
+        } catch (error) {
+            console.error('Error en limpieza automática de conductores expirados:', error);
+        }
+    };
+    
+    // Iniciar la limpieza automática al cargar el módulo - ejecutar cada 5 minutos
+    const INTERVALO_LIMPIEZA_MS = 5 * 60 * 1000; // 5 minutos
+    limpiezaIntervalId = setInterval(limpiarConductoresExpirados, INTERVALO_LIMPIEZA_MS);
+
+    // Middleware para limpieza manual en cada petición
+    router.use(async (req, res, next) => {
+        // Solo ejecutamos limpieza manual en 1 de cada 100 peticiones para evitar sobrecarga
+        if (Math.random() < 0.01) {
+            await limpiarConductoresExpirados();
+        }
+        next();
+    });
 
     /**
      * endpoint para activar un conductor y registrarlo como disponible
@@ -231,6 +264,38 @@ export default function activarConductor(pool) {
             return res.status(500).json({
                 success: false,
                 message: 'Error interno del servidor al verificar estado del conductor',
+                error: error.message
+            });
+        }
+    });
+
+    /**
+     * endpoint para eliminar registros expirados de conductores activos
+     * elimina automáticamente todos los registros cuya fecha de expiración ya se cumplió
+     */
+    router.delete('/limpiar-expirados', async (req, res) => {
+        try {
+            const deleteResult = await pool.query(
+                `DELETE FROM conductores_activos_disponibles
+                WHERE sesion_expira_en < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')
+                RETURNING conductor_id`
+            );
+
+            const conductoresEliminados = deleteResult.rows.length;
+
+            return res.status(200).json({
+                success: true,
+                message: `${conductoresEliminados} registro(s) de conductores expirados eliminados`,
+                data: {
+                    conductoresEliminados,
+                    ids: deleteResult.rows.map(row => row.conductor_id)
+                }
+            });
+        } catch (error) {
+            console.error('Error al eliminar registros expirados:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Error interno del servidor al eliminar registros expirados',
                 error: error.message
             });
         }
