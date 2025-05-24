@@ -12,8 +12,8 @@ export default function aceptarViajeRoutes(pool) {
 
         // verificar que se recibieron los parámetros requeridos
         if (!viaje_id || !user_id) {
-            return res.status(400).json({ 
-                error: 'Información incompleta', 
+            return res.status(400).json({
+                error: 'Información incompleta',
                 mensaje: 'No se pudo procesar su solicitud porque faltan datos necesarios. Por favor, inténtelo de nuevo o contacte a soporte técnico.'
             });
         }
@@ -31,14 +31,14 @@ export default function aceptarViajeRoutes(pool) {
 
             if (conductorResult.rows.length === 0) {
                 await client.query('ROLLBACK');
-                return res.status(404).json({ 
-                    error: 'Perfil de conductor no encontrado', 
+                return res.status(404).json({
+                    error: 'Perfil de conductor no encontrado',
                     mensaje: 'Su cuenta de usuario no está asociada a un perfil de conductor. Para aceptar viajes, complete su registro como conductor primero.'
                 });
             }
 
             const conductor_id = conductorResult.rows[0].id;
-            
+
             // verificar que el conductor esté disponible en conductores_activos_disponibles
             const conductorDisponibleResult = await client.query(
                 `SELECT estado_disponibilidad_viaje FROM conductores_activos_disponibles 
@@ -48,17 +48,17 @@ export default function aceptarViajeRoutes(pool) {
 
             if (conductorDisponibleResult.rows.length === 0) {
                 await client.query('ROLLBACK');
-                return res.status(400).json({ 
-                    error: 'Sesión de conductor inactiva', 
+                return res.status(400).json({
+                    error: 'Sesión de conductor inactiva',
                     mensaje: 'Para aceptar viajes, primero debe activar su disponibilidad como conductor en la aplicación.'
                 });
             }
 
             const estadoDisponibilidad = conductorDisponibleResult.rows[0].estado_disponibilidad_viaje;
-            
+
             if (estadoDisponibilidad !== 'disponible') {
                 await client.query('ROLLBACK');
-                
+
                 let mensajePersonalizado = '';
                 if (estadoDisponibilidad === 'ofrecido_viaje') {
                     mensajePersonalizado = 'Actualmente tiene una oferta de viaje pendiente. Complete o rechace ese proceso antes de aceptar un nuevo viaje.';
@@ -67,11 +67,11 @@ export default function aceptarViajeRoutes(pool) {
                 } else {
                     mensajePersonalizado = `Su estado actual (${estadoDisponibilidad}) no le permite aceptar viajes en este momento.`;
                 }
-                
-                return res.status(400).json({ 
-                    error: 'No disponible para aceptar viajes', 
+
+                return res.status(400).json({
+                    error: 'No disponible para aceptar viajes',
                     mensaje: mensajePersonalizado,
-                    estado_actual: estadoDisponibilidad 
+                    estado_actual: estadoDisponibilidad
                 });
             }
 
@@ -83,8 +83,8 @@ export default function aceptarViajeRoutes(pool) {
 
             if (viajeResult.rows.length === 0) {
                 await client.query('ROLLBACK');
-                return res.status(404).json({ 
-                    error: 'Viaje no disponible', 
+                return res.status(404).json({
+                    error: 'Viaje no disponible',
                     mensaje: 'Este viaje ya no está disponible. Puede que otro conductor lo haya aceptado o haya sido cancelado. Por favor, actualice su lista de viajes disponibles.'
                 });
             }
@@ -117,7 +117,7 @@ export default function aceptarViajeRoutes(pool) {
 
             // actualizar el estado de todas las solicitudes asociadas a "aceptado"
             const solicitudesIds = solicitudesResult.rows.map(row => row.solicitud_viaje_id);
-            
+
             if (solicitudesIds.length > 0) {
                 await client.query(
                     `UPDATE solicitudes_viaje 
@@ -130,7 +130,7 @@ export default function aceptarViajeRoutes(pool) {
             // confirmar
             await client.query('COMMIT');
 
-            res.status(200).json({ 
+            res.status(200).json({
                 message: '¡Viaje aceptado correctamente! Los pasajeros han sido notificados y están esperando su llegada.',
                 viaje_id: viaje_id,
                 conductor_id: conductor_id,
@@ -141,8 +141,8 @@ export default function aceptarViajeRoutes(pool) {
         } catch (error) {
             await client.query('ROLLBACK');
             console.error('Error al aceptar el viaje:', error);
-            res.status(500).json({ 
-                error: 'Error en el sistema', 
+            res.status(500).json({
+                error: 'Error en el sistema',
                 mensaje: 'Ha ocurrido un problema al procesar su solicitud. Por favor, inténtelo nuevamente en unos momentos. Si el problema persiste, contacte a soporte técnico.'
             });
         } finally {
