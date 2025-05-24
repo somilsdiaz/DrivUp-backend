@@ -21,6 +21,7 @@ import visualizacionRuta from './routes/Modulo Transporte dinamico/visualizacion
 import listaViajesRoutes from './routes/Modulo Transporte dinamico/listaViajes.js';
 import activarConductor from './routes/Modulo Transporte dinamico/activarConductor.js';
 import detallesViajeRoutes from './routes/Modulo Transporte dinamico/detalles_viajes.js';
+import aceptarViajeRoutes from './routes/Modulo Transporte dinamico/aceptarViaje.js';
 
 
 config();
@@ -72,6 +73,7 @@ app.use('/', visualizacionRuta(pool));
 app.use('/', listaViajesRoutes(pool));
 app.use('/', activarConductor(pool));   
 app.use('/', detallesViajeRoutes(pool));
+app.use('/', aceptarViajeRoutes(pool));
 //app.use('/noticias/img', express.static('public/noticias/img'));
 
 // Iniciar servidor
