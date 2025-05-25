@@ -150,6 +150,133 @@ export default function aceptarViajeRoutes(pool) {
         }
     });
 
+    // endpoint para cancelar un viaje por parte del conductor
+    router.post('/cancelar-viaje', async (req, res) => {
+        const { viaje_id, user_id } = req.body;
+
+        // verificar que se recibieron los parámetros requeridos
+        if (!viaje_id || !user_id) {
+            return res.status(400).json({
+                error: 'Información incompleta',
+                mensaje: 'No se pudo procesar su solicitud porque faltan datos necesarios. Por favor, inténtelo de nuevo o contacte a soporte técnico.'
+            });
+        }
+
+        const client = await pool.connect();
+        try {
+            // iniciar transacción
+            await client.query('BEGIN');
+
+            // obtener el conductor_id a partir del user_id
+            const conductorResult = await client.query(
+                'SELECT id FROM conductores WHERE user_id = $1',
+                [user_id]
+            );
+
+            if (conductorResult.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({
+                    error: 'Perfil de conductor no encontrado',
+                    mensaje: 'Su cuenta de usuario no está asociada a un perfil de conductor.'
+                });
+            }
+
+            const conductor_id = conductorResult.rows[0].id;
+
+            // verificar que el viaje existe y está asignado a este conductor
+            const viajeResult = await client.query(
+                'SELECT * FROM viajes WHERE id = $1 AND conductor_id = $2 AND estado = $3',
+                [viaje_id, conductor_id, 'aceptado_conductor']
+            );
+
+            if (viajeResult.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({
+                    error: 'Viaje no encontrado',
+                    mensaje: 'No se encontró un viaje activo asignado a su perfil con el ID proporcionado.'
+                });
+            }
+
+            // verificar el estado actual del conductor
+            const conductorStatusResult = await client.query(
+                `SELECT estado_disponibilidad_viaje FROM conductores_activos_disponibles 
+                 WHERE conductor_id = $1`,
+                [conductor_id]
+            );
+
+            if (conductorStatusResult.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    error: 'Sesión de conductor inactiva',
+                    mensaje: 'Su sesión como conductor no está activa.'
+                });
+            }
+
+            const estadoDisponibilidad = conductorStatusResult.rows[0].estado_disponibilidad_viaje;
+
+            if (estadoDisponibilidad !== 'en_viaje_asignado') {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    error: 'Estado incorrecto',
+                    mensaje: `No puede cancelar este viaje en su estado actual (${estadoDisponibilidad}).`
+                });
+            }
+
+            // actualizar el viaje: cambiar estado a cancelado_conductor
+            await client.query(
+                'UPDATE viajes SET estado = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+                ['cancelado_conductor', viaje_id]
+            );
+
+            // obtener todas las solicitudes de viaje asociadas al viaje
+            const solicitudesResult = await client.query(
+                'SELECT solicitud_viaje_id FROM viaje_pasajeros WHERE viaje_id = $1',
+                [viaje_id]
+            );
+
+            // actualizar el estado de todas las solicitudes asociadas a "cancelado_conductor"
+            const solicitudesIds = solicitudesResult.rows.map(row => row.solicitud_viaje_id);
+
+            if (solicitudesIds.length > 0) {
+                await client.query(
+                    `UPDATE solicitudes_viaje 
+                     SET estado = 'cancelado_conductor', updated_at = CURRENT_TIMESTAMP 
+                     WHERE id = ANY($1)`,
+                    [solicitudesIds]
+                );
+            }
+
+            // actualizar el estado del conductor en conductores_activos_disponibles a "disponible"
+            const actualizarConductorResult = await client.query(
+                `UPDATE conductores_activos_disponibles 
+                 SET estado_disponibilidad_viaje = 'disponible', updated_at = CURRENT_TIMESTAMP 
+                 WHERE conductor_id = $1
+                 RETURNING *`,
+                [conductor_id]
+            );
+
+            // confirmar
+            await client.query('COMMIT');
+
+            res.status(200).json({
+                message: 'Viaje cancelado correctamente.',
+                viaje_id: viaje_id,
+                conductor_id: conductor_id,
+                conductor_status_updated: actualizarConductorResult.rows.length > 0,
+                solicitudes_actualizadas: solicitudesIds.length
+            });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error('Error al cancelar el viaje:', error);
+            res.status(500).json({
+                error: 'Error en el sistema',
+                mensaje: 'Ha ocurrido un problema al procesar su solicitud. Por favor, inténtelo nuevamente en unos momentos. Si el problema persiste, contacte a soporte técnico.'
+            });
+        } finally {
+            client.release();
+        }
+    });
+
     // endpoint para obtener detalles de un viaje aceptado por un conductor
     router.get('/detalles-viaje-conductor', async (req, res) => {
         const { user_id } = req.query;
