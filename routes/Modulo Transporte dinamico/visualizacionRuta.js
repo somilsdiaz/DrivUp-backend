@@ -71,61 +71,86 @@ const rutas = (pool) => {
       
       // caso 1: pmcp es origen
       if (viaje.pmcp_es_origen) {
-        // el origen es el pmcp (primer punto)
         respuesta.origen = puntosRuta[0];
         
-        // el destino es el ultimo punto
-        respuesta.destino = puntosRuta[puntosRuta.length - 1];
+        const pasajerosCandidatos = puntosRuta.slice(1);
         
-        // los puntos intermedios son todos menos el primero y el ultimo
-        respuesta.puntos_intermedios = puntosRuta.slice(1, puntosRuta.length - 1);
+        if (pasajerosCandidatos.length === 0) {
+          respuesta.destino = null; 
+          respuesta.puntos_intermedios = [];
+        } else {
+          // hay uno o más pasajeros. El destino es el pasajero más lejano al conductor.
+          const pasajerosConDistancia = pasajerosCandidatos.map(punto => ({
+            punto,
+            distancia: calcularDistancia(
+              conductor.ubicacion_actual_lat,
+              conductor.ubicacion_actual_lon,
+              punto.lat,
+              punto.lng
+            )
+          }));
+          
+          pasajerosConDistancia.sort((a, b) => b.distancia - a.distancia); // ordenar por distancia descendente
+          
+          respuesta.destino = pasajerosConDistancia[0].punto;
+          
+          // puntos intermedios son los demás pasajeros, excluyendo el destino seleccionado.
+          respuesta.puntos_intermedios = pasajerosCandidatos.filter(
+            p => p !== respuesta.destino
+          );
+        }
       } 
       // caso 2: pmcp es destino (origen particular)
       else {
-        // calcular distancias desde el conductor a cada punto de la ruta
-        const distancias = puntosRuta.map((punto, index) => ({
-          punto,
-          index,
-          distancia: calcularDistancia(
-            conductor.ubicacion_actual_lat, 
-            conductor.ubicacion_actual_lon, 
-            punto.lat, 
-            punto.lng
-          )
-        }));
+        respuesta.destino = puntosRuta[puntosRuta.length - 1]; // PMCP es el destino
         
-        // ordenar por distancia al conductor (ascendente)
-        distancias.sort((a, b) => a.distancia - b.distancia);
+        const posiblesOrigenes = puntosRuta.slice(0, puntosRuta.length - 1);
         
-        // el origen es el punto mas cercano al conductor
-        respuesta.origen = distancias[0].punto;
-        
-        // el destino es el pmcp (ultimo punto)
-        respuesta.destino = puntosRuta[puntosRuta.length - 1];
-        
-        // crear un conjunto para realizar seguimiento de indices usados
-        const indicesUsados = new Set([distancias[0].index, puntosRuta.length - 1]);
-        
-        // ordenar los puntos restantes por su posicion original en la ruta
-        // excluir el origen y destino que ya hemos definido
-        respuesta.puntos_intermedios = puntosRuta
-          .filter((_, index) => !indicesUsados.has(index))
-          .sort((a, b) => {
-            // calcular distancia al conductor para cada punto
+        if (posiblesOrigenes.length === 0) {
+          // solo existe el pmcp en la ruta, no hay origen posible.
+          respuesta.origen = null;
+          respuesta.puntos_intermedios = [];
+        } else {
+          // calcular distancias desde el conductor a los posibles orígenes (todos los puntos excepto el pmcp)
+          const origenesConDistancia = posiblesOrigenes.map(punto => ({
+            punto,
+            distancia: calcularDistancia(
+              conductor.ubicacion_actual_lat,
+              conductor.ubicacion_actual_lon,
+              punto.lat,
+              punto.lng
+            )
+          }));
+          
+          // ordenar por distancia al conductor (ascendente) para encontrar el más cercano
+          origenesConDistancia.sort((a, b) => a.distancia - b.distancia);
+          
+          respuesta.origen = origenesConDistancia[0].punto;
+          
+          // puntos intermedios son los demás puntos (excluyendo pmcp y el origen seleccionado),
+          // ordenados por cercanía al conductor.
+          let intermediosCandidatos = posiblesOrigenes.filter(
+            p => p !== respuesta.origen
+          );
+
+          // ordenar los puntos intermedios por distancia al conductor (ascendente)
+          intermediosCandidatos.sort((a, b) => {
             const distA = calcularDistancia(
-              conductor.ubicacion_actual_lat, 
-              conductor.ubicacion_actual_lon, 
-              a.lat, 
+              conductor.ubicacion_actual_lat,
+              conductor.ubicacion_actual_lon,
+              a.lat,
               a.lng
             );
             const distB = calcularDistancia(
-              conductor.ubicacion_actual_lat, 
-              conductor.ubicacion_actual_lon, 
-              b.lat, 
+              conductor.ubicacion_actual_lat,
+              conductor.ubicacion_actual_lon,
+              b.lat,
               b.lng
             );
             return distA - distB;
           });
+          respuesta.puntos_intermedios = intermediosCandidatos;
+        }
       }
       
       res.json(respuesta);

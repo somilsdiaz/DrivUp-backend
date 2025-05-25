@@ -213,6 +213,19 @@ GROUP BY
     });
 
 
+    router.get('/datoconductor', async (req, res) => {
+        const id = req.query.id;
+        try {
+            const conductor = await pool.query(`
+    select * from conductores
+    where user_id=${id}`);
+            res.json(conductor.rows);
+        } catch (error) {
+            console.error("Error al obtener la infomracion del conductor:", error);
+            res.status(500).json({ message: "Error interno del servidor" });
+        }
+    });
+
    
 
     return router;
