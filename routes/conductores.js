@@ -226,7 +226,38 @@ GROUP BY
         }
     });
 
-   
+router.patch("/actualizar", async (req)=> {
+ const { id, ...datos } = req.body;
+  const keys = Object.keys(datos);
+  const values = Object.values(datos);
+
+  if (keys.length === 0) {
+    res.status(400).json({ message: 'No se proporcionaron datos para actualizar' });
+    return;
+  }
+
+  if( !id) {
+    res.status(400).json({ message: 'ID del conductor es requerido para actualizar' });
+    return;
+  }
+
+
+  const setQuery = keys.map((key, index) => `${key} = $${index + 1}`).join(', ');
+
+  const query = `
+    UPDATE conductores
+    SET ${setQuery}
+    WHERE id = ${id}
+  `;
+
+  try {
+    await pool.query(query, values);
+  } catch (err) {
+   res.status(500).json({ message: 'Error al actualizar el conductor', error: err.message });
+  }
+}
+
+)  
 
     return router;
 }
