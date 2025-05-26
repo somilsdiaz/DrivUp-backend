@@ -22,6 +22,7 @@ import listaViajesRoutes from './routes/Modulo Transporte dinamico/listaViajes.j
 import activarConductor from './routes/Modulo Transporte dinamico/activarConductor.js';
 import detallesViajeRoutes from './routes/Modulo Transporte dinamico/detalles_viajes.js';
 import aceptarViajeRoutes from './routes/Modulo Transporte dinamico/aceptarViaje.js';
+import estadoViajeConductorRoutes from './routes/Modulo Transporte dinamico/estado_viaje_conductor.js';
 
 
 config();
@@ -36,6 +37,23 @@ const io = new Server(server, {
         methods: ['GET', 'POST'], //permitir metodos GET y POST
         allowedHeaders: ['Content-Type', 'Authorization'] //permitir encabezados de contenido y autorización
     }
+});
+
+// Configurar evento de conexión de Socket.IO
+io.on('connection', (socket) => {
+    console.log('Usuario conectado:', socket.id);
+    
+    // Evento para que un usuario se una a su sala personalizada
+    socket.on('join_user_room', (userId) => {
+        if (userId) {
+            socket.join(`user_${userId}`);
+            console.log(`Usuario ${userId} unido a sala user_${userId}`);
+        }
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('Usuario desconectado:', socket.id);
+    });
 });
 
 const pool = new pg.Pool({
@@ -73,7 +91,8 @@ app.use('/', visualizacionRuta(pool));
 app.use('/', listaViajesRoutes(pool));
 app.use('/', activarConductor(pool));   
 app.use('/', detallesViajeRoutes(pool));
-app.use('/', aceptarViajeRoutes(pool));
+app.use('/', aceptarViajeRoutes(pool, io));
+app.use('/', estadoViajeConductorRoutes(pool));
 //app.use('/noticias/img', express.static('public/noticias/img'));
 
 // Iniciar servidor

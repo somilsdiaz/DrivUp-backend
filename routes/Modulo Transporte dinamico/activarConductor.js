@@ -13,6 +13,7 @@ export default function activarConductor(pool) {
             const deleteResult = await pool.query(
                 `DELETE FROM conductores_activos_disponibles
                 WHERE sesion_expira_en < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')
+                AND estado_disponibilidad_viaje = 'disponible'
                 RETURNING conductor_id`
             );
             

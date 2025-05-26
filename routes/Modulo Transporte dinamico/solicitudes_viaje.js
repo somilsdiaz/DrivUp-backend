@@ -438,7 +438,9 @@ export default function solicitudesViajeRoutes(pool) {
                 'en_progreso_solicitud',
                 'completado_solicitud',
                 'cancelado_pasajero',
-                'cancelado_sistema'
+                'cancelado_sistema',
+                'cancelado_conductor'
+
             ];
 
             // consulta para verificar si el usuario tiene solicitudes en estados diferentes a los especificados
@@ -472,8 +474,8 @@ export default function solicitudesViajeRoutes(pool) {
     });
 
     /**
-     * endpoint para cancelar todas las solicitudes activas de un usuario
-     * cambia el estado a "cancelado_pasajero" para todas las solicitudes en estado pendiente, agrupada u ofertado
+     * endpoint para cancelar la solicitud más reciente de un usuario
+     * cambia el estado a "cancelado_pasajero" solo para la solicitud más reciente en estado activo
      */
     router.post("/cancelar-solicitud/:userId", async (req, res) => {
         const { userId } = req.params;
@@ -497,44 +499,136 @@ export default function solicitudesViajeRoutes(pool) {
             }
 
             // estados que se consideran activos y pueden ser cancelados
-            const estadosActivos = ['pendiente', 'agrupada', 'ofertado'];
+            const estadosActivos = ['pendiente', 'agrupada', 'ofertado', 'aceptado'];
 
-            // consulta para actualizar las solicitudes activas del usuario
-            const query = `
-                UPDATE solicitudes_viaje 
-                SET estado = 'cancelado_pasajero',
-                    updated_at = NOW()
+            // consulta para identificar la solicitud más reciente del usuario
+            const findQuery = `
+                SELECT id 
+                FROM solicitudes_viaje 
                 WHERE pasajero_id = $1 
                 AND estado IN (${estadosActivos.map((_, i) => `$${i + 2}`).join(',')})
-                RETURNING id, estado, created_at, updated_at;
+                ORDER BY created_at DESC
+                LIMIT 1
             `;
 
-            // ejecutamos la consulta con los parámetros
-            const result = await pool.query(query, [userIdNum, ...estadosActivos]);
-
-            // obtenemos las solicitudes actualizadas
-            const solicitudesCanceladas = result.rows;
-            const cantidadCanceladas = solicitudesCanceladas.length;
-
-            // formateamos la respuesta según si se cancelaron solicitudes o no
-            if (cantidadCanceladas > 0) {
-                res.status(200).json({
-                    success: true,
-                    message: `Se han cancelado ${cantidadCanceladas} solicitud(es) de viaje.`,
-                    solicitudesCanceladas: solicitudesCanceladas
-                });
-            } else {
-                res.status(200).json({
+            // obtenemos la solicitud más reciente
+            const findResult = await pool.query(findQuery, [userIdNum, ...estadosActivos]);
+            
+            if (findResult.rows.length === 0) {
+                return res.status(200).json({
                     success: true,
                     message: "No se encontraron solicitudes activas para cancelar.",
                     solicitudesCanceladas: []
                 });
             }
+            
+            const solicitudId = findResult.rows[0].id;
+            
+            // consulta para actualizar solo la solicitud más reciente
+            const updateQuery = `
+                UPDATE solicitudes_viaje 
+                SET estado = 'cancelado_pasajero',
+                    updated_at = NOW()
+                WHERE id = $1
+                RETURNING id, estado, created_at, updated_at;
+            `;
+
+            // ejecutamos la consulta con el id de la solicitud
+            const result = await pool.query(updateQuery, [solicitudId]);
+
+            // obtenemos la solicitud actualizada
+            const solicitudCancelada = result.rows[0];
+
+            res.status(200).json({
+                success: true,
+                message: "Se ha cancelado la solicitud de viaje más reciente.",
+                solicitudCancelada: solicitudCancelada
+            });
         } catch (error) {
-            console.error("Error al cancelar solicitudes:", error);
+            console.error("Error al cancelar solicitud:", error);
             res.status(500).json({
                 success: false,
-                message: "Error interno al cancelar solicitudes de viaje.",
+                message: "Error interno al cancelar solicitud de viaje.",
+                error: error.message
+            });
+        }
+    });
+
+    /**
+     * endpoint para marcar como completada la solicitud más reciente de un usuario
+     * cambia el estado a "completado_solicitud" solo para la solicitud más reciente en estado activo
+     */
+    router.post("/completar-solicitud/:userId", async (req, res) => {
+        const { userId } = req.params;
+
+        // verificamos que se proporcione el ID de usuario
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "Se requiere el ID del usuario."
+            });
+        }
+
+        try {
+            // verificamos que el ID del usuario sea un número válido
+            const userIdNum = parseInt(userId);
+            if (isNaN(userIdNum)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "El ID del usuario debe ser un valor numérico válido."
+                });
+            }
+
+            // estados que pueden marcarse como completados
+            const estadosActivos = ['aceptado', 'en_progreso_solicitud'];
+
+            // consulta para identificar la solicitud más reciente del usuario
+            const findQuery = `
+                SELECT id 
+                FROM solicitudes_viaje 
+                WHERE pasajero_id = $1 
+                AND estado IN (${estadosActivos.map((_, i) => `$${i + 2}`).join(',')})
+                ORDER BY created_at DESC
+                LIMIT 1
+            `;
+
+            // obtenemos la solicitud más reciente
+            const findResult = await pool.query(findQuery, [userIdNum, ...estadosActivos]);
+            
+            if (findResult.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "No se encontraron solicitudes activas para completar."
+                });
+            }
+            
+            const solicitudId = findResult.rows[0].id;
+            
+            // consulta para actualizar solo la solicitud más reciente
+            const updateQuery = `
+                UPDATE solicitudes_viaje 
+                SET estado = 'completado_solicitud',
+                    updated_at = NOW()
+                WHERE id = $1
+                RETURNING id, estado, created_at, updated_at;
+            `;
+
+            // ejecutamos la consulta con el id de la solicitud
+            const result = await pool.query(updateQuery, [solicitudId]);
+
+            // obtenemos la solicitud actualizada
+            const solicitudCompletada = result.rows[0];
+
+            res.status(200).json({
+                success: true,
+                message: "Se ha completado la solicitud de viaje.",
+                solicitudCompletada: solicitudCompletada
+            });
+        } catch (error) {
+            console.error("Error al completar solicitud:", error);
+            res.status(500).json({
+                success: false,
+                message: "Error interno al completar solicitud de viaje.",
                 error: error.message
             });
         }
@@ -545,6 +639,100 @@ export default function solicitudesViajeRoutes(pool) {
         try {
             const result = await pool.query(
                 `SELECT * FROM solicitudes_viaje WHERE estado = 'pendiente'`
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error("Error al obtener solicitudes pendientes:", error);
+            res.status(500).json({ message: "Error interno del servidor" });
+        }
+    });
+
+    /**
+     * endpoint para obtener el ID del viaje actual de un usuario
+     * busca la ultima solicitud con estado "aceptado" para el usuario y retorna el ID del viaje asociado
+     */
+    router.get("/viaje-actual/:userId", async (req, res) => {
+        const { userId } = req.params;
+
+        // verificamos que se proporcione el ID de usuario
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "Se requiere el ID del usuario."
+            });
+        }
+
+        try {
+            // verificamos que el ID del usuario sea un número válido
+            const userIdNum = parseInt(userId);
+            if (isNaN(userIdNum)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "El ID del usuario debe ser un valor numérico válido."
+                });
+            }
+
+            // buscamos la última solicitud con estado "aceptado" para este usuario
+            const solicitudQuery = `
+                SELECT id FROM solicitudes_viaje
+                WHERE pasajero_id = $1 
+                AND estado = 'aceptado'
+                ORDER BY updated_at DESC
+                LIMIT 1
+            `;
+
+            const solicitudResult = await pool.query(solicitudQuery, [userIdNum]);
+
+            // si no hay solicitud aceptada, retornamos un mensaje apropiado
+            if (solicitudResult.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "No se encontró una solicitud aceptada para el usuario."
+                });
+            }
+
+            const solicitudId = solicitudResult.rows[0].id;
+
+            // buscamos el viaje asociado a esta solicitud en la tabla viaje_pasajeros
+            const viajeQuery = `
+                SELECT viaje_id FROM viaje_pasajeros
+                WHERE solicitud_viaje_id = $1
+                LIMIT 1
+            `;
+
+            const viajeResult = await pool.query(viajeQuery, [solicitudId]);
+
+            // si no hay viaje asociado, retornamos un mensaje apropiado
+            if (viajeResult.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "No se encontró un viaje asociado a la solicitud aceptada."
+                });
+            }
+
+            // retornamos el ID del viaje
+            res.status(200).json({
+                success: true,
+                solicitudId: solicitudId,
+                viajeId: viajeResult.rows[0].viaje_id
+            });
+
+        } catch (error) {
+            console.error("Error al obtener el viaje actual:", error);
+            res.status(500).json({
+                success: false,
+                message: "Error interno al obtener el viaje actual.",
+                error: error.message
+            });
+        }
+    });
+
+
+    // Obtener todas las solicitudes sin importar el estado
+    router.get("/solicitudes-viaje", async (req, res) => {
+        try {
+            const result = await pool.query(
+                `SELECT * FROM solicitudes_viaje`
             );
             res.json(result.rows);
         } catch (error) {
