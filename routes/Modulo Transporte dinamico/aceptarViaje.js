@@ -3,7 +3,7 @@ import express from 'express';
 /**
  * endpoint conductor aceptar viaje
  */
-export default function aceptarViajeRoutes(pool) {
+export default function aceptarViajeRoutes(pool, io) {
     const router = express.Router();
 
     // endpoint para aceptar un viaje
@@ -125,6 +125,48 @@ export default function aceptarViajeRoutes(pool) {
                      WHERE id = ANY($1)`,
                     [solicitudesIds]
                 );
+
+                // Obtener los IDs de usuarios (pasajeros) asociados a las solicitudes
+                const pasajerosResult = await client.query(
+                    `SELECT pasajero_id FROM solicitudes_viaje 
+                     WHERE id = ANY($1)`,
+                    [solicitudesIds]
+                );
+
+                // Lista de IDs de pasajeros para notificar
+                const pasajeroIds = pasajerosResult.rows.map(row => row.pasajero_id);
+                
+                // Obtener información del conductor para la notificación
+                const conductorInfoResult = await client.query(
+                    `SELECT c.id, c.marca_de_vehiculo, c.modelo_de_vehiculo, 
+                            c.color_del_vehiculo, c.placa_del_vehiculo, c.foto_de_perfil,
+                            u.name, u.second_name, u.last_name, u.second_last_name
+                     FROM conductores c
+                     JOIN usuarios u ON c.user_id = u.id
+                     WHERE c.id = $1`,
+                    [conductor_id]
+                );
+                
+                let conductorInfo = {};
+                if (conductorInfoResult.rows.length > 0) {
+                    const conductor = conductorInfoResult.rows[0];
+                    conductorInfo = {
+                        id: conductor.id,
+                        nombre: `${conductor.name} ${conductor.second_name || ''} ${conductor.last_name} ${conductor.second_last_name || ''}`.trim(),
+                        vehiculo: `${conductor.marca_de_vehiculo} ${conductor.modelo_de_vehiculo} (${conductor.color_del_vehiculo})`,
+                        placa: conductor.placa_del_vehiculo,
+                        foto: conductor.foto_de_perfil
+                    };
+                }
+                
+                // Enviar notificaciones a todos los pasajeros
+                pasajeroIds.forEach(pasajeroId => {
+                    io.to(`user_${pasajeroId}`).emit('viaje_aceptado', {
+                        viaje_id: viaje_id,
+                        conductor: conductorInfo,
+                        mensaje: 'Un conductor ha aceptado tu viaje'
+                    });
+                });
             }
 
             // confirmar

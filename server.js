@@ -38,6 +38,23 @@ const io = new Server(server, {
     }
 });
 
+// Configurar evento de conexión de Socket.IO
+io.on('connection', (socket) => {
+    console.log('Usuario conectado:', socket.id);
+    
+    // Evento para que un usuario se una a su sala personalizada
+    socket.on('join_user_room', (userId) => {
+        if (userId) {
+            socket.join(`user_${userId}`);
+            console.log(`Usuario ${userId} unido a sala user_${userId}`);
+        }
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('Usuario desconectado:', socket.id);
+    });
+});
+
 const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL, 
     ssl:true,
@@ -73,7 +90,7 @@ app.use('/', visualizacionRuta(pool));
 app.use('/', listaViajesRoutes(pool));
 app.use('/', activarConductor(pool));   
 app.use('/', detallesViajeRoutes(pool));
-app.use('/', aceptarViajeRoutes(pool));
+app.use('/', aceptarViajeRoutes(pool, io));
 //app.use('/noticias/img', express.static('public/noticias/img'));
 
 // Iniciar servidor
