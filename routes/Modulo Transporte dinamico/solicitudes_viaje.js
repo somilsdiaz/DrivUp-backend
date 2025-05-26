@@ -438,7 +438,9 @@ export default function solicitudesViajeRoutes(pool) {
                 'en_progreso_solicitud',
                 'completado_solicitud',
                 'cancelado_pasajero',
-                'cancelado_sistema'
+                'cancelado_sistema',
+                'cancelado_conductor'
+
             ];
 
             // consulta para verificar si el usuario tiene solicitudes en estados diferentes a los especificados
