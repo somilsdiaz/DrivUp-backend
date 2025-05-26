@@ -555,6 +555,85 @@ export default function solicitudesViajeRoutes(pool) {
         }
     });
 
+    /**
+     * endpoint para obtener el ID del viaje actual de un usuario
+     * busca la ultima solicitud con estado "aceptado" para el usuario y retorna el ID del viaje asociado
+     */
+    router.get("/viaje-actual/:userId", async (req, res) => {
+        const { userId } = req.params;
+
+        // verificamos que se proporcione el ID de usuario
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "Se requiere el ID del usuario."
+            });
+        }
+
+        try {
+            // verificamos que el ID del usuario sea un número válido
+            const userIdNum = parseInt(userId);
+            if (isNaN(userIdNum)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "El ID del usuario debe ser un valor numérico válido."
+                });
+            }
+
+            // buscamos la última solicitud con estado "aceptado" para este usuario
+            const solicitudQuery = `
+                SELECT id FROM solicitudes_viaje
+                WHERE pasajero_id = $1 
+                AND estado = 'aceptado'
+                ORDER BY updated_at DESC
+                LIMIT 1
+            `;
+
+            const solicitudResult = await pool.query(solicitudQuery, [userIdNum]);
+
+            // si no hay solicitud aceptada, retornamos un mensaje apropiado
+            if (solicitudResult.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "No se encontró una solicitud aceptada para el usuario."
+                });
+            }
+
+            const solicitudId = solicitudResult.rows[0].id;
+
+            // buscamos el viaje asociado a esta solicitud en la tabla viaje_pasajeros
+            const viajeQuery = `
+                SELECT viaje_id FROM viaje_pasajeros
+                WHERE solicitud_viaje_id = $1
+                LIMIT 1
+            `;
+
+            const viajeResult = await pool.query(viajeQuery, [solicitudId]);
+
+            // si no hay viaje asociado, retornamos un mensaje apropiado
+            if (viajeResult.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "No se encontró un viaje asociado a la solicitud aceptada."
+                });
+            }
+
+            // retornamos el ID del viaje
+            res.status(200).json({
+                success: true,
+                solicitudId: solicitudId,
+                viajeId: viajeResult.rows[0].viaje_id
+            });
+
+        } catch (error) {
+            console.error("Error al obtener el viaje actual:", error);
+            res.status(500).json({
+                success: false,
+                message: "Error interno al obtener el viaje actual.",
+                error: error.message
+            });
+        }
+    });
 
     return router;
 } 
