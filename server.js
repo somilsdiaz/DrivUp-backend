@@ -64,7 +64,7 @@ const pool = new pg.Pool({
 // Middleware
 app.use(cors({
     origin: ['http://localhost:5173', 'https://drivup.onrender.com'],
-    methods: 'GET,POST,PUT,DELETE',
+    methods: 'GET,POST,PUT,DELETE,PATCH',
     allowedHeaders: 'Content-Type,Authorization'
 }));
 app.use(express.json()); // Para analizar cuerpos de solicitud en formato JSON
