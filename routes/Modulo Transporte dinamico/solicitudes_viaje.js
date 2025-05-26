@@ -728,6 +728,19 @@ export default function solicitudesViajeRoutes(pool) {
     });
 
 
-    
+    // Obtener todas las solicitudes sin importar el estado
+    router.get("/solicitudes-viaje", async (req, res) => {
+        try {
+            const result = await pool.query(
+                `SELECT * FROM solicitudes_viaje`
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error("Error al obtener solicitudes pendientes:", error);
+            res.status(500).json({ message: "Error interno del servidor" });
+        }
+    });
+
+
     return router;
 } 

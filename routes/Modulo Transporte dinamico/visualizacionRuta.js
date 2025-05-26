@@ -4,36 +4,36 @@ import { calcularDistancia } from '../../utils/geoUtils.js';
 const router = express.Router();
 
 const rutas = (pool) => {
-  
-  // router.get('/ruta-candidata/:grupoId', async (req, res) => {
-  //   const { grupoId } = req.params;
 
-  //   try {
-  //     const { rows: puntos } = await pool.query(
-  //       `SELECT latitud, longitud FROM ubicaciones_ruta WHERE grupo_candidato_id = $1 ORDER BY orden`,
-  //       [grupoId]
-  //     );
+  router.get("/conductores-activos-disponibles/:conductor_id", async (req, res) => {
+  const { conductor_id } = req.params;
 
-  //     res.json({ puntos });
-  //   } catch (error) {
-  //     console.error('Error al obtener ruta:', error);
-  //     res.status(500).json({ message: 'Error al obtener ruta' });
-  //   }
-  // });
+  try {
+    const result = await pool.query(
+      `SELECT * FROM conductores_activos_disponibles WHERE conductor_id = $1`,
+      [conductor_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error al obtener conductor_activo_disponible:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
 
-  // ruta temporal en visualization.js
-  router.post('/ruta-ejemplo', (req, res) => {
-    const rutaFalsa = {
-      origen: { lat: 11.0194, lng: -74.8504 },
-      destino: { lat: 10.9663, lng: -74.7760 },
-      puntos_intermedios: [
-        { lat: 11.0000, lng: -74.8200 },
-        { lat: 10.9900, lng: -74.8000 }
-      ]
-    };
+  router.get("/viaje-pasajeros/:viaje_id", async (req, res) => {
+  const { viaje_id } = req.params;
 
-    res.json(rutaFalsa);
-  });
+  try {
+    const result = await pool.query(
+      `SELECT * FROM viaje_pasajeros WHERE viaje_id = $1`,
+      [viaje_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error al obtener viaje_pasajeros:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
 
   router.get('/ruta-viaje/:id/:conductor_id', async (req, res) => {
     const { id, conductor_id } = req.params;
@@ -180,6 +180,9 @@ const rutas = (pool) => {
   });
 
   return router;
+
+  
 };
+
 
 export default rutas;
