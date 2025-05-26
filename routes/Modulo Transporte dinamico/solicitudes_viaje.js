@@ -474,8 +474,8 @@ export default function solicitudesViajeRoutes(pool) {
     });
 
     /**
-     * endpoint para cancelar todas las solicitudes activas de un usuario
-     * cambia el estado a "cancelado_pasajero" para todas las solicitudes en estado pendiente, agrupada u ofertado
+     * endpoint para cancelar la solicitud más reciente de un usuario
+     * cambia el estado a "cancelado_pasajero" solo para la solicitud más reciente en estado activo
      */
     router.post("/cancelar-solicitud/:userId", async (req, res) => {
         const { userId } = req.params;
@@ -499,44 +499,56 @@ export default function solicitudesViajeRoutes(pool) {
             }
 
             // estados que se consideran activos y pueden ser cancelados
-            const estadosActivos = ['pendiente', 'agrupada', 'ofertado'];
+            const estadosActivos = ['pendiente', 'agrupada', 'ofertado', 'aceptado'];
 
-            // consulta para actualizar las solicitudes activas del usuario
-            const query = `
-                UPDATE solicitudes_viaje 
-                SET estado = 'cancelado_pasajero',
-                    updated_at = NOW()
+            // consulta para identificar la solicitud más reciente del usuario
+            const findQuery = `
+                SELECT id 
+                FROM solicitudes_viaje 
                 WHERE pasajero_id = $1 
                 AND estado IN (${estadosActivos.map((_, i) => `$${i + 2}`).join(',')})
-                RETURNING id, estado, created_at, updated_at;
+                ORDER BY created_at DESC
+                LIMIT 1
             `;
 
-            // ejecutamos la consulta con los parámetros
-            const result = await pool.query(query, [userIdNum, ...estadosActivos]);
-
-            // obtenemos las solicitudes actualizadas
-            const solicitudesCanceladas = result.rows;
-            const cantidadCanceladas = solicitudesCanceladas.length;
-
-            // formateamos la respuesta según si se cancelaron solicitudes o no
-            if (cantidadCanceladas > 0) {
-                res.status(200).json({
-                    success: true,
-                    message: `Se han cancelado ${cantidadCanceladas} solicitud(es) de viaje.`,
-                    solicitudesCanceladas: solicitudesCanceladas
-                });
-            } else {
-                res.status(200).json({
+            // obtenemos la solicitud más reciente
+            const findResult = await pool.query(findQuery, [userIdNum, ...estadosActivos]);
+            
+            if (findResult.rows.length === 0) {
+                return res.status(200).json({
                     success: true,
                     message: "No se encontraron solicitudes activas para cancelar.",
                     solicitudesCanceladas: []
                 });
             }
+            
+            const solicitudId = findResult.rows[0].id;
+            
+            // consulta para actualizar solo la solicitud más reciente
+            const updateQuery = `
+                UPDATE solicitudes_viaje 
+                SET estado = 'cancelado_pasajero',
+                    updated_at = NOW()
+                WHERE id = $1
+                RETURNING id, estado, created_at, updated_at;
+            `;
+
+            // ejecutamos la consulta con el id de la solicitud
+            const result = await pool.query(updateQuery, [solicitudId]);
+
+            // obtenemos la solicitud actualizada
+            const solicitudCancelada = result.rows[0];
+
+            res.status(200).json({
+                success: true,
+                message: "Se ha cancelado la solicitud de viaje más reciente.",
+                solicitudCancelada: solicitudCancelada
+            });
         } catch (error) {
-            console.error("Error al cancelar solicitudes:", error);
+            console.error("Error al cancelar solicitud:", error);
             res.status(500).json({
                 success: false,
-                message: "Error interno al cancelar solicitudes de viaje.",
+                message: "Error interno al cancelar solicitud de viaje.",
                 error: error.message
             });
         }
