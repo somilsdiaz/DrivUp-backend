@@ -4,7 +4,22 @@ import { calcularDistancia } from '../../utils/geoUtils.js';
 const router = express.Router();
 
 const rutas = (pool) => {
-  
+
+  router.get("/conductores-activos-disponibles/:conductor_id", async (req, res) => {
+  const { conductor_id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT * FROM conductores_activos_disponibles WHERE conductor_id = $1`,
+      [conductor_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error al obtener conductor_activo_disponible:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
   router.get("/viaje-pasajeros/:viaje_id", async (req, res) => {
   const { viaje_id } = req.params;
 
