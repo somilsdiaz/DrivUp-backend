@@ -95,7 +95,7 @@ on v.punto_concentracion_id=p.id
 where v.conductor_id=${id}
             `);
 
-      res.status(200).json(reseñas.rows);
+      res.status(200).json(lista.rows);
     } catch (error) {
       console.error("Error al obtener la lista de viajes:", error);
       res.status(500).json({ message: "Error interno al obtener la lista de viajes" });
