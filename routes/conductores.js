@@ -226,7 +226,7 @@ GROUP BY
         }
     });
 
-router.patch("/actualizar", async (req)=> {
+router.put("/actualizar", async (req)=> {
  const { id, ...datos } = req.body;
   const keys = Object.keys(datos);
   const values = Object.values(datos);
