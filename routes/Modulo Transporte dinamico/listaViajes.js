@@ -85,14 +85,14 @@ const listadoViajes = (pool) => {
      router.get("/lista-viajes-conductor", async (req, res) => {
     const { id } = req.query; 
     try {
-      const reseñas = await pool.query(`
+      const lista = await pool.query(`
               select p.nombre as punto_concentracion,
 v.numero_pasajeros_total as cantidad_pasajeros,
 v.ganancia_estimada_conductor as ganancia_estimada,
 v.tiempo_estimado_min as tiempo_estimado, v.* from viajes as v
 inner join puntos_concentracion as p 
 on v.punto_concentracion_id=p.id
-where v.id=${id}
+where v.conductor_id=${id}
             `);
 
       res.status(200).json(reseñas.rows);
@@ -105,7 +105,7 @@ where v.id=${id}
 router.get("/lista-viajes-pasajero", async (req, res) => {
     const { id } = req.query; 
     try {
-      const reseñas = await pool.query(`
+      const lista = await pool.query(`
 select pc.nombre as punto_concentracion,
 v.numero_pasajeros_total as cantidad_pasajeros,
 v.ganancia_estimada_conductor as ganancia_estimada,
@@ -117,7 +117,7 @@ join puntos_concentracion pc on v.punto_concentracion_id=pc.id
 where sv.pasajero_id=${id}
             `);
 
-      res.status(200).json(reseñas.rows);
+      res.status(200).json(lista.rows);
     } catch (error) {
       console.error("Error al obtener la lista de viajes:", error);
       res.status(500).json({ message: "Error interno al obtener la lista de viajes" });
