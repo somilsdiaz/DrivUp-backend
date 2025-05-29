@@ -247,7 +247,7 @@ router.put("/actualizar", async (req)=> {
   const query = `
     UPDATE conductores
     SET ${setQuery}
-    WHERE id = ${id}
+    WHERE user_id = ${id}
   `;
 
   try {
