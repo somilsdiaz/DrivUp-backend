@@ -285,7 +285,7 @@ export default function usuariosRoutes(pool) {
                 select c.id from conductores c
                 where user_id=${id}
     `);
-            res.json(id.rows);
+            res.json(idConductor.rows);
         } catch (error) {
             console.error("Error al obtener el id:", error);
             res.status(500).json({ message: "Error interno del servidor" });
