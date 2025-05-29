@@ -292,6 +292,20 @@ export default function usuariosRoutes(pool) {
         }
     });
 
+      router.get('/conductorUserId', async (req, res) => {
+        const { id } = req.query;
+        try {
+            const idConductor = await pool.query(`
+               select c.user_id from conductores c
+                where id=${id}
+    `);
+            res.json(idConductor.rows);
+        } catch (error) {
+            console.error("Error al obtener el id:", error);
+            res.status(500).json({ message: "Error interno del servidor" });
+        }
+    });
+
     return router;
 }
 
