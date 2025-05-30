@@ -138,7 +138,7 @@ async function combinaciones(pool, grupos, conductores) {
   const max = obtenerCapacidadMaxima(conductores);
   let combi;
   for (let j = 0; j < grupos.length; j++) {
-    if (grupos[j].solicitudes !== null && grupos[j].solicitudes.length > min) {
+    if (grupos[j].solicitudes !== null && grupos[j].solicitudes.length >= min) {
       combi = {
         grupo_candidato_id: grupos[j].id,
         pmcp_id: grupos[j].pmcp_id,
