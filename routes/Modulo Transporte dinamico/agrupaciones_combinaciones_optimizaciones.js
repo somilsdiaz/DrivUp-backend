@@ -39,10 +39,10 @@ export default (pool) => {
     }
   });
 
-  // Scheduler para correr la función automáticamente cada 15 minutos
-  cron.schedule('*/15 * * * *', async () => {
+  // Scheduler para correr la función automáticamente cada 9 segundos
+  cron.schedule('*/9 * * * * *', async () => {
     try {
-      console.log('Ejecutando agrupación automática cada 15 minutos...');
+      console.log('Ejecutando agrupación automática cada 9 segundos...');
       await agruparSolicitudesPorPMCP(pool);
       if (await nuevo_grupo(pool)) {
         await generateCombinations(pool);
