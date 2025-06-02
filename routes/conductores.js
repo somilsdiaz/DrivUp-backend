@@ -190,7 +190,7 @@ FROM (
     FROM usuarios AS u
     INNER JOIN conductores AS c ON c.user_id = u.id
 ) AS T
-INNER JOIN reseñas AS r ON T.id = r.conductor_id
+LEFT JOIN reseñas AS r ON T.id = r.conductor_id
 GROUP BY 
     T.id, 
 	T.user_id,
