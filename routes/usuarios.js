@@ -7,6 +7,25 @@ config();
 const router = express.Router();
 
 export default function usuariosRoutes(pool) {
+    // Función para actualizar la secuencia de IDs
+    async function resetIdSequence() {
+        try {
+            // Obtener el valor máximo actual de ID
+            const maxIdQuery = 'SELECT MAX(id) FROM usuarios';
+            const maxIdResult = await pool.query(maxIdQuery);
+            const maxId = maxIdResult.rows[0].max || 0;
+            
+            // Actualizar la secuencia para que comience desde maxId + 1
+            const resetSequenceQuery = `SELECT setval('usuarios_id_seq', $1, true)`;
+            await pool.query(resetSequenceQuery, [maxId]);
+            
+            console.log(`Secuencia de ID actualizada para comenzar desde ${maxId + 1}`);
+        } catch (error) {
+            console.error('Error al resetear la secuencia:', error);
+            // No lanzar error para no interrumpir el flujo principal
+        }
+    }
+
     // Ruta para registrar un usuario
     router.post('/registro', async (req, res) => {
         const {
@@ -37,6 +56,9 @@ export default function usuariosRoutes(pool) {
         }
 
         try {
+            // Resetear la secuencia antes de insertar
+            await resetIdSequence();
+
             // Verificar si el documento ya existe con el mismo tipo
             const checkDocumentQuery = `
             SELECT id FROM usuarios 
@@ -102,6 +124,19 @@ export default function usuariosRoutes(pool) {
                 }
                 if (error.constraint === 'unique_email') {
                     return res.status(400).json({ message: 'El email ya está registrado.' });
+                }
+                if (error.constraint === 'usuarios_pkey') {
+                    // Intentar nuevamente el registro después de resetear la secuencia
+                    console.log('Detectado conflicto de ID, intentando nuevamente después de resetear la secuencia');
+                    try {
+                        await resetIdSequence();
+                        // Intentar insertar de nuevo con la secuencia actualizada
+                        await pool.query(query, values);
+                        return res.status(201).json({ message: 'Usuario registrado exitosamente.' });
+                    } catch (retryError) {
+                        console.error('Error al reintentar el registro:', retryError);
+                        return res.status(500).json({ message: 'Error interno al registrar el usuario.' });
+                    }
                 }
             }
             console.error('Error al registrar usuario:', error);
